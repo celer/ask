@@ -1,0 +1,473 @@
+V2.5.3
+
+- Bugfix: Typo caused askremote.py to crash.
+
+- Bugfix: Remote command's "Deliver email" would always act on a fixed
+  message, not on the chosen one.
+
+- Bugfix: Crash on certain messages on delivery (usually as a result
+  of delivery via remote commands).
+
+- Bugfix: The delivery routines now weed out the "Delivered-To" header.
+  The presence of this header causes some MTAs to think that the message
+  has already been delivered, causing a fake mail loop error.
+
+- Bugfix: "ASK HELP" would cause a crash because of an extra parameter
+  while formatting the html help message.
+
+- Bugfix: Delivery of messages by remote commands caused an extra message
+  of zero bytes to be delivered as well.
+
+- Revised the entire code to make sure messages originating from remote
+  commands are delivered directly to the mailbox, and not through procmail
+  (or whatever filter one might be using) again.
+
+V2.5.2
+
+- Bugfix: Typo caused askconfig.py to crash.
+
+- Bugfix: rc_confirm_langs was not being read from the config file, which
+  caused a traceback.
+
+V2.5.1
+
+- The blacklist functionality is gone for good. It caused too many problems.
+  Any email addresses found in the old blacklist files are now treated as
+  addresses in the ignorelist. Remote commands adding or removing from the
+  blacklist will act on the ignorelist instead. "ASK HELP" will not, however,
+  advertise the blacklist commands as an option, to avoid confusion.
+  
+- Removed a bug that would cause a failure upon receipt of a confirmation
+  message. Thanks to Jerome Dumonteil for the patch.
+
+- New command line option: "--rcfile=ask_rc_file". You can now "force" the
+  configuration file to be a specific file. Thanks to Sven Verdoolaege
+  for this patch.
+
+- New configuration variable: rc_junk_unknown_recipients. When set to "yes",
+  ASK will junk the message if none of our configured addresses (rc_mymails)
+  appear in the "To/Cc/Bcc" fields of the original message. Default = false
+  (the old behavior).  Thanks to J.R. Oldroyd for this patch.
+
+- ASK now ignores the "Reply-To:" field when checking for mailer-daemon
+  messages. Thanks to J.R. Oldroyd for this patch.
+
+- Many programs and files that depended on the "samples" directory have
+  been changed to reference the files from the templates directory.
+
+- The contents of the "samples" directory have been moved off to the
+  "templates" directory, as they're not exactly samples (they're used
+  by asksetup).
+
+- Renamed main executable, ask.py, to askfilter.
+
+- Renamed asksetup.py to asksetup.
+
+- ASK PROCESS Q is now a synonym for ASK PROCESS QUEUE.
+
+- bugfix: Messages delivered via deliver_mail did not have a "Date:"
+  field.
+
+- HTML Received and Size fields added to the ASK Queue Report.
+
+- HTML Remote commands now use a table for formatting. The whole thing
+  should look much better now. We also have a new format for the textmode
+  commands and a line separating messages.
+  
+- Removed the mail loop message. Most people disliked it.
+
+- Added a new command line switch: --filter. This puts ASK in "mail
+  filter" mode. This mode is very similar to the "procmail mode", with the
+  difference that it always returns a valid exit code. Messages to be
+  discarded are delivered to stdout (filtered) with a "X-ASK-Action: Discard"
+  header indicating that it should be discarded. The old --procmail mode
+  will slowly be phased out.
+
+  If you're using procmail, you'll probably want to change your .procmailrc
+  recipes to:
+
+  :0 fW
+  /path_to_ask/askfilter --logfile=ask.log --loglevel=10 --filter
+
+  :0
+  * ^X-ASK-Action: Discard
+  /dev/null
+
+- Major re-write and code cleanup on the remote commands. When using text
+  mode remote commands, results are always sent directly to the user's
+  mailbox defined in rc_mymailbox, _except_ when delivering messages
+  in procmail or filter mode. In this case, the MTA will be used to
+  forward the messages to rc_mymails[0] with the corresponding X-ASK-Auth
+  code that will cause immediately delivery.
+  
+V2.5.0
+
+- implemented SMTP checking: ASK now knows how to check users remotely using
+  SMTP. This method does not work for all cases, but should eliminate some 
+  confirmation messages from the queue. Note: You need pydns ou python-adns
+  to use this.
+ 
+- Pipe delivery is now possible: Check the sample_askrc file for details and
+  tips.
+
+- Generates a log message if the current Python version is not supported.
+
+V2.4.1
+
+- bugfix: An incorrect variable name caused remote commands to traceback.
+  Fixed (localtempFile -> localTempFile)
+
+- bugfix: all occurrences of os.environ changed to os.getenv. os.environ
+  causes a traceback if the variables does not exist. This caused a problem
+  with an untreated exception in the exception handling code.
+
+V2.4.0
+
+- Removed examples from the sample lists. A lot of people were having problems
+  with their MUAs reformatting the examples in weird ways.
+
+- RPM now includes the manpages.
+
+- Renamed confirmlist.txt to .ask-loop-control.dat. The name confirmlist.txt
+  seems to imply this file is yet another list, when it is not.
+
+- Removed a nasty bug with cyclic references that caused temporary files to
+  be left behind in some cases (again, our thanks to Nils Weisensee).
+
+- Added Danish translations of confirmation and blacklist messages.
+
+- Character set of confirmation messages is now iso-8859-1 instead of unknown.
+
+- Reformatted sample whitelist, blacklist and ignorelist to not exceed
+  70 columns.
+
+- Added exception handling.
+
+- Found a bug in Python <2.2. This is now the minimum recommended version.
+  (thanks to Nils Weisensee for spotting this hard to trace bug).
+
+- bugfix: Some messages without the sender's username caused a traceback.
+
+- Messages from mailer-daemon, remote commands and confirmation returns will
+  not be matched in the whitelist anymore.
+
+V2.3.beta3
+
+- bugfix: Messages from whitelisted people that look like a confirmation return
+  will not be blindly delivered.
+
+- The list matching routines will specifically ignore any matches that also 
+  match one of our email addresses ("from re" only).
+
+- Added the "header re" qualifier in the regular expression to match any header.
+
+- Lots of bugfixes on the Makefile and .spec. RPMs should be correct now.
+
+- bugfix: empty regexp would match everything
+
+- bugfix: ASK EDIT {WHITE|IGNORE|BLACK}LIST would cause a traceback. 
+
+- Some typos fixed.
+
+V2.3.beta2
+
+- White/Ignore and Blacklists can be spread over multiple files. Only the
+  first one will be written to by ASK but all will be used to match. The sample
+  config file also includes a "-local" version of each list file suitable for
+  local editing (prevents conflicts).
+
+- Regular expressions are "escaped" before being added to the whitelist. 
+  If something like "paganini@paganini.net" is added, it will be converted
+  to "paganini@paganini\.net"
+
+- X-Primary-Address takes precedence over all other headers when checking for
+  the sender's address (as suggested by Jason Mastaler). It is *not* used to
+  send back any messages (nastygrams/confirmations).
+
+- The "Resent-From" field now takes precedence over Reply-To: and From:
+
+- Queue listing is now reverse-sorted by file modification time.
+
+- Confirmations will cause both the sender in the confirmation *and* the
+  sender in the queued message to be added to the whitelist.
+
+- Regular expression match: From/To in the lists will match in a slightly
+  different way. Things like foo@bar (looking like a complete email) will
+  be translated internally into "^foo@bar" (to avoid oo@bar from matching
+  as foo@bar). All the rest is left intact (so, for instance, @bar will
+  match anything having @bar anywhere in the string).
+
+- Whitelist is checked before blacklist and ignorelist. This allows people
+  to ignore an entire domain while allowing access to certain people from
+  that domain, for instance (always make sure you never have your email in
+  any of your lists).
+
+- Senders will not be added to the lists if they are already there.
+
+- Fixed bug that prevented Eudora from working correctly with the "mailto:"
+  links (Eudora dislikes single quotes).
+
+- Bulk/Junk have been removed from the sample configuration file.
+
+- Messages can now be saved in "IMAP" format. Many thanks to Dan Pewzner for
+  this brilliant idea and sponsorship.
+
+- distutils installation has been phased out. A new Makefile has been added to
+  create the RPM and TAR files (soon, .DEB)
+
+- Heavy remodeling in the remote commands code. Lots of small bugs ironed out.
+
+- Quotes are now allowed in the configuration files.
+
+
+V2.3.beta1
+
+- List edits will handle quoting properly
+
+- X-ASK-Info now shows the "approving" whitelist line, if that's the case.
+
+- Support for the "*_mailbody.txt" files is slowly being phased out
+
+- Finnish Translation Added (thanks to Reijo Korhonen)
+
+- A space between the "mailto:" and the real email address was confusing some
+  browsers. Fixed.
+
+- A timestamp is automatically appended to all X-ASK-Info headers.
+
+- Junk/Bulk messages are now queued with the appropriate warning in the
+  X-ASK-Info header.
+
+V2.2
+
+- Lists now match using either substrings or regular expressions (previously,
+  only regular expressions were allowed). Now, "cow" will match "cow@moo.org".
+  Note that something like "from cow@moo.org" will also match "supercow@moo.org".
+  If you want to match only "cow@moo.org" use "from ^cow@moo.org$"
+
+- Blacklist template is now available in French.
+
+V2.1.beta2
+
+- ASK PROCESS QUEUE will now return a message indicating that the queue
+  is empty, it that's the case.
+
+- Some improvements in the sample .askrc file
+
+- Web Page moved out of the main CVS tree
+
+- Blacklisted people were receiving a message with the confirmation template.
+  Fixed.
+
+- List of email in rc_mymails are now handled in a case insensitive manner.
+
+- Fixed a typo in the english template.
+
+V2.1.beta1
+
+- Fixed a bug that would cause loss of emails if two mails arrived exactly
+  at the same time (Maildir users only).
+
+- Dutch translation added thanks to Jeffrey Voorhaar.
+
+- MD5 key was not being used correctly. Fixed.
+
+- Confirmation messages now have "Precedence: bulk" and "In-Reply-To"
+
+- ASK will now limit the number of confirmation messages it sends to the same
+  address during a certain period of time.
+
+- Added support for remote queue processing, both in text and
+  html mode (check samples/ask_samplerc for example config 
+  parameters that affect this new feature)
+
+- rc_junkmailbox (and rc_bulkmailbox) are now optional. Not setting
+  those variables will cause messages originally going to those
+  mailboxes to be discarded.
+
+- New variable: --rc_bulkmailbox. Anything coming from a mailing
+  list (or Precedence: bulk) that is not whitelisted will be
+  sent here instead of junked.
+
+- Added --home command line option (backported from 2.0.2)
+
+- Fixed some problems in setup.py and asksetup.py (thanks to
+  Wolfgang Ocker for the patches)
+
+- New configuration directive in (.askrc): rc_max_attach_lines.
+  This controls how many lines ASK will send back in the message
+  attached to the confirmation (Thanks to Wolfgang Ocker for the
+  patches)
+
+- Messages matched in the ignorelist and blacklist are thrown to
+  the void, not junked.
+
+- Fixed a small detail in the .forward configuration documentation.
+
+- Added Joe Vaughan's Alternative (global) Exim installation
+  instructions.
+
+- New configuration parameter: rc_whitelist_on_mailkey. When this
+  is set to "true", ASK will automatically add the sender to the
+  whitelist upon reception of a message with our mailkey.
+
+- Fixed a bug in the procmail documentation.
+
+- PID added to the log output (makes it easier to trace different
+  processes writing to the file at the same time)
+
+- Local mails (without "@" sign) will not be dumped to Junk
+
+- Documentation moved to DocBook
+
+- Our key in the confirmation message will not automatically let messages
+  pass thru.
+
+- Only selected languages will be sent in the confirmation/nastygram.
+
+V2.0.2
+
+- Fixed "Procmail Installation" instructions.
+
+- Non-existent environment variables in the configuration file are now
+  expanded to "".
+
+- Added the --home command line switch. Now you can specify the home
+  directory instead of relying on the contents of the HOME environment variable.
+
+V2.0.1
+
+- Fixed the bug that caused ASK to lock a file named .something when
+  rc_lockfile was not set.
+
+- Added CRLF between messages. This fixes the bug where multiple messages
+  appear as a single one in a mbox style mailbox (thanks to Bill Schaffer)
+
+- Locking routines now use fcntl instead of FCNTL. This should improve
+  portability with Python 2.
+
+V2.0
+
+- After many problems, LaTeX2HTML was switched to HeVeA for the documentation.
+
+- CRLF in the headers will not cause a traceback anymore
+
+- Documentation fixes (broken hyperlinks)
+
+- Added better instructions for users of .forward files
+
+- Added documentation for qmail users
+
+- Locking routines now use fcntl.lockf (portability issues)
+
+- Logo changed (homepage)
+
+V1.3.beta2
+
+- Italian translation added, thanks to Luciano Blini
+
+- Errors in the regular expressions (lists) will not cause the program to
+  abort anymore.
+
+- All occurences of SPAM changed to Spam to avoid legal problems. :)
+
+- Fixed a bug that caused a Traceback with the 'to ' qualifier.
+
+V1.3.beta1
+
+- Documentation was moved to LaTex.
+
+- ASK was completely redesigned into an Object Oriented program. The main file
+  was split into different classes that can be incorporated into other programs.
+
+- The "to " qualifier in the lists also matches Cc and Bcc
+
+- The 'From:' line in confirmations and nastygrams will match the correct 
+  recipient of the current email. Now, if you have three emails (a@x.com, b@y.com
+  and c@z.com) and a message is sent to b@y.com, the confirmation message
+  From: line will appear as "From: b@y.com" (unlike previous versions that
+  always used the first entry).
+  
+- New configuration file format. The file is not "evaled" into the main source
+  anymore.
+
+- New configuration variable: rc_myfullname. This is used to set your "full name"
+  in outgoing mails.
+
+- New configuration variable: rc_basic_headers. Confirmation messages and 
+  nastygram will preserve only these fields in the original message when sending
+  it back.
+
+- New configuration variable: rc_lockfile. You can specify a different lockfile
+  to be used when adding information to the whitelist or your mailbox. Note that
+  ask should be the only program delivering mail to your mailbox if this option
+  is used (this is the normal case).
+
+V1.2a 
+
+- bugfix: ask.py was returning a non-existing constant, causing errors messages
+  to be sent back to senders.
+
+V1.2
+
+- The new default directory for ask is $HOME/.ask. The installation instructions
+  and the sample_askrc file have been changed to reflect this.
+
+- asksetup.py created. This should make installation a little bit easier.
+  
+- French translation added to confirm_mailbody.txt (thanks to Glenn W. Carbines).
+
+- German translation added to confirm_mailbody.txt and blacklist_mailbody.txt
+  (thanks to Tobias Haecker).
+ 
+- senders.py now outputs 'from username@domain' instead of 'username@domain'.
+
+- Homepage changes: Download now points to sourceforge.net; added FORUMS and
+  CVS links to the homepage.
+
+- ASK is now available as an RPM file.
+
+- Now optionally uses distutils to do the installation (setup.py).
+
+- Added --procmail option. ASK can now be called from procmail like this:
+
+  :0 fW
+  |/path/to/ask/ask.py --procmail
+
+  :0 e
+  /dev/null
+
+  Incoming mails will be filtered and dequeues magically processed, if necessary.
+
+- Mails are never sent back to messages that have "Return-Path: <>".
+
+V1.1
+
+- All messages coming from mailing lists (that are not in the whitelist)
+  will be junked. The same is true for messages coming from "robots", like
+  "bounce", "noreply", "nobody", etc.
+
+- All three lists now accept 'extended' matching. You can match by "From"
+  (from regexp), "To" (to regexp) or "Subject" (subject regexp). A "bare"
+  regular expression or string (without 'from/to/subject and a space' will
+  match the sender's email (like in the previous version). Check the INSTALL
+  file for more detailed information on installation and configuration. (this
+  feature is handy to allow mailing-lists that show emails coming from the
+  poster to the mailing list address)
+
+- removed a lot of unnecessary fh.close() statements.
+
+- rc_mymail has been renamed to rc_mymails (a list of email
+  addresses). Special provisions have been added to treat old cases (for people
+  who may still have the old rc_mymail in their .askrc file)
+
+- New text for users in the blacklist as suggested by Daniel Richard G.
+
+- Installation instructions will go inside the package (INSTALL) (thanks to
+  Daniel Richard G. for the idea)
+
+- Corrected bug in command line processing
+
+- "Postmaster" is now a synonym for "Mailer-Daemon"
+
+- Modified to work with newer versions of python

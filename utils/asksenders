@@ -1,0 +1,127 @@
+#!/usr/bin/python
+#------------------------------------------------------------------------------
+#	asksenders
+#
+#	This utility will scan stdin (mbox format) and produce a list of senders.
+#	The list comes in a format suitable to be directly fed to whitelist.txt
+#
+#	(C) Dec/2001 by Marco Paganini (paganini@paganini.net)
+#
+#   This file is part of ASK - Active Spam Killer
+#
+#   ASK is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   ASK is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with ASK; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	$Id: asksenders,v 1.1 2003/11/15 18:54:53 paganini Exp $
+#------------------------------------------------------------------------------
+
+import sys
+import string
+import mailbox
+import rfc822
+import getopt
+
+#------------------------------------------------------------------------------
+def usage():
+	sys.stderr.write("Use: asksenders [--bcc] [--cc] [--to] mailboxes...\n")
+	sys.stderr.write("\nWhere:\n");
+	sys.stderr.write("    --bcc: Also adds addresses in the Bcc: field\n")
+	sys.stderr.write("    --cc: Also adds addresses in the Cc: field\n")
+	sys.stderr.write("    --to: Also adds addresses in the To: field\n")
+	sys.stderr.write("\nBy default, only addresses in the \"From:\" field are used\n")
+
+#------------------------------------------------------------------------------
+## Parse command line
+
+try:
+	(opts, args) = getopt.getopt(sys.argv[1:], "", ["bcc", "cc","to"])
+except getopt.error:
+	usage()
+	sys.exit(1)
+
+
+if len(args) == 0:
+	usage()
+	sys.exit(1)
+
+bcc_mode = 0
+cc_mode  = 0
+to_mode  = 0
+
+for o, a in opts:
+	if (o == "--bcc"):
+		bcc_mode = 1
+	if (o == "--cc"):
+		cc_mode = 1
+	if (o == "--to"):
+		to_mode = 1
+		
+mail_list = []
+
+for mbox in args:
+
+	fh = open(mbox, "r")
+
+	m = mailbox.UnixMailbox(fh)
+
+	while 1:
+		msg = m.next()
+		if (msg == None):
+			break
+
+		## Check From: (default)
+		(name, email) = msg.getaddr("From")
+
+		if (email != None and string.find(email, "@") != -1):
+			email = string.rstrip(email)
+			mail_list.append(string.lower(email))
+
+		## Check Bcc:
+		if bcc_mode:
+			(name, email) = msg.getaddr("Bcc")
+
+			if (email != None and string.find(email,"@") != -1):
+				email = string.rstrip(email)
+				mail_list.append(string.lower(email))
+
+		## Check Cc:
+		if cc_mode:
+			(name, email) = msg.getaddr("Cc")
+
+			if (email != None and string.find(email,"@") != -1):
+				email = string.rstrip(email)
+				mail_list.append(string.lower(email))
+
+		## Check To:
+		if to_mode:
+			(name, email) = msg.getaddr("To")
+
+			if (email != None and string.find(email,"@") != -1):
+				email = string.rstrip(email)
+				mail_list.append(string.lower(email))
+
+	fh.close
+
+## Print list of unique email addresses
+
+mail_list.sort()
+
+prev_email = ''
+
+for email in mail_list:
+	if (email != prev_email):
+		print "from %s" % email
+		prev_email = email
+
+sys.exit(0)

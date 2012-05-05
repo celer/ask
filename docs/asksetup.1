@@ -1,0 +1,44 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH asksetup 1 "2003" GNU "Active Spam Killer user configurator"
+.SH NAME
+asksetup \- Active Spam Killer user installer
+
+.SH SYNOPSIS
+asksetup 
+
+.SH DESCRIPTION
+\fIasksetup\fR sets up the initial environment for ASK under the current
+user's account. It creates the \fI~./ask\fR directory with the correct
+structure and message templates in different languages. It also copies a
+standard template to the user's \fI~/.askrc\fR file.
+
+The \fI~/.askrc\fR file \fBmust\fR be edited by the user to set the desired
+language, email address, user name and many other options.
+
+This program \fBdoes not\fR modify the user's \fI~/.forward\fR file. Please consult
+the full documentation or your System Administrator on how to do it.
+
+.SH FILES
+.I ~/.askrc
+.RS
+Main configuration file.
+.RE
+.I ~/.ask
+.RS
+This directory contains the queued files, temporary files and lists.
+.RE
+.SH DOCUMENTATION
+
+The program's home page and the complete documentation can be found at
+\fIhttp://www.paganini.net/ask\fR
+
+.SH BUGS
+Bugs? Where? :)
+.SH AUTHOR
+Marco Paganini <paganini@paganini.net>
+.SH "SEE ALSO"
+.BR askfilter (1),
+.BR asksenders (1),
+.BR procmail (1)

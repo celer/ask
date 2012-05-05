@@ -1,0 +1,69 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH askfilter 1 "2003" GNU "Active Spam Killer Manual"
+.SH NAME
+askfilter \- Active Spam Killer
+
+.SH SYNOPSIS
+askfilter [\fB--procmail\fR] [\fB--logfile\fR=\fIlogfile\fR] [\fB--loglevel\fR=\fIloglevel\fR]
+[\fB--home\fR=\fIhomedir\fR]
+
+.SH DESCRIPTION
+Active Spam Killer (ASK) is a challenge-authentication anti-spam tool that
+attempts to validate unknown senders before allowing delivery of their
+message. Validation occurs by means of a challenge reply sent to senders
+who are not yet known to the system. Messages are kept in a queue pending
+confirmation until the sender replies to the challenge. Further messages
+coming from confirmed senders are delivered immediately.
+
+ASK expects incoming mails on the standard input and performs delivery
+directly to the user's mailbox, as specified in the \fI~.askrc\fR
+configuration file. If using the \fB--procmail\fR switch, ASK works as a
+\fIprocmail\fR(1) filter, delivering messages to stdout and setting the
+appropriate return code for procmail.
+
+New users should always execute the \fIasksetup\fR(1) bootstrap program to
+create the initial \fI~/.ask\fR directory and a template \fI.askrc\fR file.
+
+.SH OPTIONS
+.IP --procmail
+In this mode, normal messages will be delivered to stdout and the
+corresponding exit codes will be used to mark delivery or not.  Use this
+switch when invoking ASK from \fIprocmail\fR(1)
+
+.IP --logfile=filename
+Specifies the file to be used for logging.
+
+.IP --loglevel=loglevel
+Specifies the desired logging level. Defaults to 0 (no logging).
+
+.IP --home=homedir
+Use 
+.I homedir
+as the user's home directory. This is needed with some MTAs that do not set the HOME
+environment variable. It is also useful to run several, isolated ASK
+configurations with a unique user account.
+
+.SH FILES
+.I ~/.askrc
+.RS
+Main configuration file.
+.RE
+.I ~/.ask
+.RS
+This directory contains the queued files, temporary files and lists.
+.RE
+.SH DOCUMENTATION
+
+The program's home page and the complete documentation can be found at
+\fIhttp://www.paganini.net/ask\fR
+
+.SH BUGS
+Bugs? Where? :)
+.SH AUTHOR
+Marco Paganini <paganini@paganini.net>
+.SH "SEE ALSO"
+.BR asksenders (1),
+.BR asksetup (1),
+.BR procmail (1)

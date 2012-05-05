@@ -1,0 +1,817 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2K.1beta (1.48)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Active Spam Killer
+Installation and Configuration</TITLE>
+<META NAME="description" CONTENT="Active Spam Killer
+Installation and Configuration">
+<META NAME="keywords" CONTENT="ask_doc">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2K.1beta">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="ask_doc.css">
+
+</HEAD>
+
+<BODY >
+
+<H1 ALIGN="CENTER">Active Spam Killer
+<BR>
+Installation and Configuration</H1>
+<P ALIGN="CENTER"><STRONG>Marco Paganini &lt;<A NAME="tex2html1"
+  HREF="mailto:paganini@paganini.net">paganini@paganini.net</A>&gt;</STRONG></P>
+
+<P>
+<BR>
+
+<H2><A NAME="SECTION00010000000000000000">
+Contents</A>
+</H2>
+<!--Table of Contents-->
+
+<UL>
+<LI><A NAME="tex2html34"
+  HREF="ask_doc.html">Copyright and Legal Information</A>
+<LI><A NAME="tex2html35"
+  HREF="#SECTION00030000000000000000">1 Installation and Configuration</A>
+<UL>
+<LI><A NAME="tex2html36"
+  HREF="#SECTION00031000000000000000">1.1 Requirements</A>
+<LI><A NAME="tex2html37"
+  HREF="#SECTION00032000000000000000">1.2 Initial Steps</A>
+<LI><A NAME="tex2html38"
+  HREF="#SECTION00033000000000000000">1.3 Installation Instructions</A>
+<LI><A NAME="tex2html39"
+  HREF="#SECTION00034000000000000000">1.4 RPM-based Installation</A>
+<LI><A NAME="tex2html40"
+  HREF="#SECTION00035000000000000000">1.5 DEB-based Installation</A>
+<LI><A NAME="tex2html41"
+  HREF="#SECTION00036000000000000000">1.6 Tarball Installation</A>
+<LI><A NAME="tex2html42"
+  HREF="#SECTION00037000000000000000">1.7 Common Installation Procedures</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html43"
+  HREF="#SECTION00040000000000000000">2 Configuration</A>
+<UL>
+<LI><A NAME="tex2html44"
+  HREF="#SECTION00041000000000000000">2.1 Configuring Your Lists</A>
+<LI><A NAME="tex2html45"
+  HREF="#SECTION00042000000000000000">2.2 Generating the Initial Whitelist</A>
+<LI><A NAME="tex2html46"
+  HREF="#SECTION00043000000000000000">2.3 Final Configuration Steps</A>
+<UL>
+<LI><A NAME="tex2html47"
+  HREF="#SECTION00043100000000000000">2.3.1 Sendmail, Exim and Postfix Users</A>
+<LI><A NAME="tex2html48"
+  HREF="#SECTION00043200000000000000">2.3.2 Alternative Exim Installation</A>
+<LI><A NAME="tex2html49"
+  HREF="#SECTION00043300000000000000">2.3.3 Qmail Users</A>
+<LI><A NAME="tex2html50"
+  HREF="#SECTION00043400000000000000">2.3.4 Procmail Users</A>
+</UL>
+</UL>
+<BR>
+<LI><A NAME="tex2html51"
+  HREF="#SECTION00050000000000000000">3 Remote Commands</A>
+<UL>
+<LI><A NAME="tex2html52"
+  HREF="#SECTION00051000000000000000">3.1 Queue Management</A>
+<LI><A NAME="tex2html53"
+  HREF="#SECTION00052000000000000000">3.2 List Management</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html54"
+  HREF="#SECTION00060000000000000000">4 Upgrade Instructions</A>
+<UL>
+<LI><A NAME="tex2html55"
+  HREF="#SECTION00061000000000000000">4.1 From version 2.2 to version 2.4.x</A>
+</UL></UL>
+<!--End of Table of Contents-->
+
+<P>
+
+<H1><A NAME="SECTION00020000000000000000">
+Copyright and Legal Information</A>
+</H1>
+
+<P>
+The Active Spam Killer (ASK) - &#169; 2001-2003 by Marco Paganini
+
+<P>
+This file is part of ASK - Active Spam Killer
+
+<P>
+ASK is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+<P>
+ASK is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+<P>
+You should have received a copy of the GNU General Public License along with
+ASK; if not, write to the Free Software Foundation, Inc., 59 Temple Place,
+Suite 330, Boston, MA 02111-1307 USA.
+
+<P>
+
+<P>
+
+<H1><A NAME="SECTION00030000000000000000">
+1 Installation and Configuration</A>
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00031000000000000000">
+1.1 Requirements</A>
+</H2>
+
+<P>
+
+<UL>
+<LI>A Unix or Linux system. Some report success running ASK under OS X but we
+could not verify it.
+
+<P>
+</LI>
+<LI>Python 2.2 or later.
+
+<P>
+</LI>
+<LI>Any mail system capable of forwarding incoming mails to a program, such as:
+
+<P>
+
+<UL>
+<LI><A NAME="tex2html2"
+  HREF="http://www.sendmail.org">Sendmail</A>
+</LI>
+<LI><A NAME="tex2html3"
+  HREF="http://www.qmail.org">Qmail</A>
+</LI>
+<LI><A NAME="tex2html4"
+  HREF="http://www.exim.org">Exim</A>
+</LI>
+<LI><A NAME="tex2html5"
+  HREF="http://www.postfix.com">Postfix</A>
+<P>
+</LI>
+</UL>
+
+<P>
+</LI>
+</UL>
+
+<P>
+ASK supports, but doesn't require
+<A NAME="tex2html6"
+  HREF="http://www.procmail.org">procmail</A>.  If you use procmail,
+make sure you have version 3.22 or later.  Older versions of procmail contain
+bugs that may cause mailbox corruption.
+
+<P>
+Supervisory access (root) is not required, but may help under some
+circumstances.
+
+<P>
+
+<H2><A NAME="SECTION00032000000000000000">
+1.2 Initial Steps</A>
+</H2>
+
+<P>
+If you're upgrading, don't forget to read the
+<A HREF="ask_doc.html#sec:upgrade-instructions">Upgrade Instructions</A>.
+The upgrade instructions must be followed carefully. A misconfigured system
+will not only make you miss important emails but also send confirmations to
+mailing lists and such. Those things will make you a very unpopular person
+and that's generally a bad idea. 
+
+<P>
+
+<H2><A NAME="SECTION00033000000000000000">
+1.3 Installation Instructions</A>
+</H2>
+
+<P>
+ASK comes pre-packaged in three different formats: an RPM file for RedHat
+users, a DEB file for Debian users and a compressed tar file that can be used
+under any unix variant.  Usually, you should opt for the pre-packaged file
+(RPM or DEB) if you have one of those systems and root access. If that's not
+the case, follow the tarball installation instructions.
+
+<P>
+
+<H2><A NAME="SECTION00034000000000000000">
+1.4 RPM-based Installation</A>
+</H2>
+
+<P>
+If you have a RPM based system (RedHat, Conectiva, etc), just download the
+respective RPM file, login as root and type:
+
+<P>
+<PRE>
+rpm -ivh ask-X.XX-X.noarch.rpm
+</PRE>
+<P>
+
+<H2><A NAME="SECTION00035000000000000000">
+1.5 DEB-based Installation</A>
+</H2>
+
+<P>
+If your system uses the Debian packaging format, just download the respective 
+DEB file, login as root and type:
+
+<P>
+<PRE>
+dpkg -i ask_X.XX-X_all.deb
+</PRE>
+<P>
+
+<H2><A NAME="SECTION00036000000000000000">
+1.6 Tarball Installation</A>
+</H2>
+
+<P>
+Use this method if you're just a regular user trying to use ASK or if you
+don't want to use the pre-packaged files. In this case, all you have to do is
+unpack ASK somewhere, like this:
+
+<P>
+<PRE>
+tar zxvf ask-X.XX.tar.gz
+</PRE>
+<P>
+This command creates a directory named ``ask-x.xx'', where ``x.xx'' is
+the current ASK version.
+
+<P>
+This method is the only alternative for those without root access.  In this
+case, just unpack the tarball under your home directory.
+
+<P>
+
+<H2><A NAME="SECTION00037000000000000000">
+1.7 Common Installation Procedures</A>
+</H2>
+
+<P>
+The rest of the installation is the same regardless of the method chosen.
+
+<P>
+First, run <TT>asksetup.py</TT> to create the <TT>.ask</TT> directory
+under your home directory and install a basic configuration file named
+<TT>$HOME/.askrc</TT>. This step is required for every user that uses ASK
+(even if you installed using the RPM or DEB installation options).
+
+<P>
+Next, edit the <TT>$HOME/.askrc</TT> file and change the variables
+accordingly. There are some important points to note:
+
+<P>
+
+<UL>
+<LI>The <TT>rc_askdir</TT> parameter points to the directory where ASK's data
+  files and lists are kept. You may think of it as the program's ``work
+  directory''. The default is <TT>$HOME/.ask</TT>.
+
+<P>
+</LI>
+<LI>Change the <TT>rc_mymails</TT> parameter to contain your email
+  addresses. Add all email addresses where you receive email, separated
+  by commas.
+
+<P>
+Example:
+
+<P>
+<PRE>
+rc_mymails = mymail@domain.com, myothermail@otherdomain.com
+</PRE>
+<P>
+</LI>
+<LI>Change <TT>rc_mymailbox</TT> to point to your mailbox. Most installations 
+  set the default mailbox to a file named with your username under 
+  ``/var/mail'' or ``/var/spool/mail''.
+
+<P>
+If you use a mail-directory instead of a mailbox (Qmail), just append a ``/'' (slash) to
+  the mailbox name. A very common approach under Qmail for example, is to use a Maildir 
+  called ``Maildir'' under the user's home directory. In this case, the <TT>rc_mymailbox</TT>
+  parameter should be set to something like:
+
+<P>
+<PRE>
+rc_mymailbox = /home/yourloginname/Mailbox/
+</PRE>
+<P>
+The slash at the end tells ASK to use this directory as a Maildir-style mailbox.
+
+<P>
+</LI>
+<LI>Change <TT>rc_md5_key</TT> to any string. This key is used to generate
+  a unique MD5 signature. This string doesn't appear anywhere and should be
+  unique. Make sure you change it! This parameter does not need to be changed
+  after the initial installation.
+
+<P>
+</LI>
+<LI>Your <TT>rc_mailkey</TT> can be any string, but it must appear on all
+  emails you send. A good idea is to pick an unusual word or combination
+  of characters from your signature. Make sure every email message you send
+  contains this string. Try to pick something without spaces as some
+  mailers tend to break phrases in mysterious ways and that could cause your
+  mailkey not to be recognized. Do not use your name as the mailkey! This
+  would case a lot of spam to be delivered as some spammers know not only
+  your address but also your name.
+
+<P>
+</LI>
+</UL>
+
+<P>
+The default for the remaining options should be appropriate for most users.
+
+<P>
+Make sure that your signature contains your mailkey. Send yourself an email
+and double check it.
+
+<P>
+
+<H1><A NAME="SECTION00040000000000000000">
+2 Configuration</A>
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00041000000000000000">
+2.1 Configuring Your Lists</A>
+</H2>
+
+<P>
+ASK uses three lists, stored as text files, under the directory specified
+by the <TT>rc_askdir</TT> parameter. These text files are named
+``whitelist.txt'', ``ignorelist.txt'' and ``blacklist.txt'' for the white,
+ignore and black lists respectively. The lists contain a set of rules
+that determine the fate of a message that reaches the system. A match in
+the whitelist will cause immediate delivery of the message. A match in
+the ignorelist will cause the message to be discarded and a match in the
+blacklist will not only discard the message but also send a ``nastygram''
+back to the sender.
+
+<P>
+There are no default list files in the installation package. If ASK cannot
+find a list file, it assumes ``empty'' as the default. This means that
+confirmation messages will be sent to everybody.
+
+<P>
+ASK uses regular expressions to match incoming emails to the lists. It's
+important to get acquainted with some basic regular expression concepts. We
+present below a sample whitelist with some common cases:
+
+<P>
+<PRE>
+from friend@bla\.org
+crazy-people@yahoogroups\.com
+from resume
+to @lists\.sourceforge.net
+from \.gov$
+from ^info@
+subject job offer
+header ^X-Spam-Status: no
+</PRE>
+<P>
+We now discuss each rule in more detail:
+
+<P>
+
+<UL>
+<LI><code>from friend@bla\.org</code>: Immediately accept any emails coming
+    from ``friend@bla.org''.  Note that dots are ``escaped'' with a
+    backslash. This indicates that we want to match a real dot. Without the
+    backslash, a dot means ``any character''.
+
+<P>
+Observe that without extra treatment, this rule would also match
+    ``friend@bla.org.br'', but ASK knows that this is an email address
+    and internally adjusts the regular expression to match only
+    ``friend@bla.org''.
+
+<P>
+</LI>
+<LI><code>crazy-people@yahoogroups\.com</code>: This entry does
+    not contain the ``from'' qualifier, so ASK adds it internally. Entries
+    like ``from x@y and ``x@y'' are completely equivalent, but you should
+    always use the ``from'' qualifier as it makes the lists more readable.
+
+<P>
+</LI>
+<LI><code>from resume</code>: This entry matches the word ``resume'' anywhere in
+    the sender's email address. Addresses like ``resume@domain.com'',
+    ``test@resume.com'', ``whatever@yourresume.com'' will be gladly accepted. Use
+    with care.
+
+<P>
+</LI>
+<LI><code>to @lists\.sourceforge\.net</code>: Emails going to
+    any address at ``lists.sourceforge.net'' are accepted immediately. This
+    is a good way to handle mailing-lists that put the mailing list address
+    in the ``To:'' field.
+
+<P>
+Email addresses are composed of two parts: The ``username'' part to the 
+	left of the ``@'' sign and the ``domain'' part to the right of the ``@'' 
+	sign. In this case, no username part exists, causing ASK to employ a 
+	substring match. Fully formed emails cause ASK to match an email address
+	exactly.
+
+<P>
+</LI>
+<LI><code>from \.gov$</code>: Matches anything coming from a ``.gov''
+    domain. The dollar sign at the end of the rule means ``Match the
+    end of the line here''. Without it, this regular expression would
+    match any addresses with ``.gov'', like ``whatever@bla.gov.mx'' and
+    ``jose.gove@test.com''.
+
+<P>
+Observe that when a full email is used in the regexp, ASK internally
+    appends the ``$'' sign to it. That's why ``from test@domain.com'' is
+    equivalent to ``from ^test@domain.com$''.
+
+<P>
+</LI>
+<LI><code>from ^info@</code>: The caret sign (^) matches the beginning of the
+    line. This regular expressions matches any email addresses beginning with
+    ``info@'', like ``info@domain.com''.  It will not match ``info'' in any other
+    part of the email address, like ``mailinfo@domain.com''.
+
+<P>
+</LI>
+<LI><code>subject job offer</code>: it's also possible to match the message
+    subject.  This rule will match the words ``job offer'' anywhere in the
+    subject. Use with care.
+
+<P>
+</LI>
+<LI><code>header ^X-Spam-Status: no</code>: this rule will match a header called
+    ``X-Spam-Status'' with ``no'' anywhere in its contents. This allows ASK to
+    be cascaded with other anti-spam solutions like
+	<A NAME="tex2html7"
+  HREF="http://www.spamassassin.org">SpamAssassin</A>.
+
+<P>
+</LI>
+</UL>
+
+<P>
+ASK never sends confirmations to mailing-lists. If ASK detects a message from
+a mailing-list it queues the message with the status of ``Bulk'', unless a
+match happens in the whitelist.  ASK uses some heuristics to determine wether
+a message is coming from a mailing-list or not.
+
+<P>
+If you are subscribed to a mailing-list make sure you have the list address
+in your whitelist. Add a ``from mailing-list-address'' if your mailing list
+sends out emails with the mailing-address in the ``From:'' (or ``Reply-To:'')
+field. Add ``to mailing-list-address'' if your mailing-list sends out emails
+with the original sender name in the ``From:'' field and the email list address
+in the ``To:'' field.
+
+<P>
+Do not publish your whitelist or someone may use one of its addresses to
+deliver spam to your mailbox.
+
+<P>
+The other lists follow the same rules. See below for a blacklist example:
+
+<P>
+<PRE>
+from boss@boringcompany\.com
+from @spam
+from exwife@bloodsuckinglawyers.com
+</PRE>
+<P>
+These people will not only be ignored but will also receive a nastygram
+back. Be careful about who you put here! You don't want to send unnecessary
+nastygrams. In most cases, you should add people you don't want to receive
+emails to <TT>ignorelist.txt</TT>. In that case, the email will be silently
+ignored.
+
+<P>
+
+<H2><A NAME="SECTION00042000000000000000">
+2.2 Generating the Initial Whitelist</A>
+</H2>
+
+<P>
+ASK comes with a program called <TT>asksenders.py</TT> that can be used to
+create an initial whitelist.
+
+<P>
+<TT>asksenders.py</TT> reads an mbox formatted mailbox on the standard input
+and outputs the rules to whitelist all email addresses found on the mailbox.
+The list can be saved as the whitelist, immediately granting access to past
+correspondents.
+
+<P>
+For more information, type <code>asksenders.py --help</code> at the command prompt.
+
+<P>
+
+<H2><A NAME="SECTION00043000000000000000">
+2.3 Final Configuration Steps</A>
+</H2>
+
+<P>
+The final configuration step is to configure your Mail Transfer Agent to pipe
+every incoming mail into ASK for processing.  This procedure varies according
+to your MTA and other factors. The following sections contain installation
+details for popular MTAs and mail filters.
+
+<P>
+
+<H3><A NAME="SECTION00043100000000000000">
+2.3.1 Sendmail, Exim and Postfix Users</A>
+</H3>
+
+<P>
+Create a file named <TT>$HOME/.forward</TT> with the following line:
+
+<P>
+<PRE>
+"|/path/ask.py --loglevel=5 --logfile=/your_home/ask.log --home=/your_home"
+</PRE>
+<P>
+Make sure you substitute ``path'' for the correct location where the 
+<TT>ask.py</TT> executable is installed, and make sure that you copy
+the quotes (") to your file - they are part of it.
+
+<P>
+Now, change the file permissions with:
+
+<P>
+<PRE>
+chmod 600 $HOME/.forward
+</PRE>
+<P>
+This configuration causes ASK to monitor your emails and generate log
+messages to a file named ``ask.log'' under your home directory.
+
+<P>
+Send yourself some emails (make sure your email signature contains your
+mailkey).  ASK some friends not yet in your whitelist to send you some emails
+and see if they receive the confirmation message. Ask them to reply to the
+confirmation message and watch in awe as their email addresses magically
+appear in your whitelist!
+
+<P>
+Monitor your log files for a while, to make sure no confirmation messages are
+being sent to mailing lists or other places where they shouldn't. When you
+are satisfied with ASK's operation, reduce the logging level to 1 to save
+disk space.
+
+<P>
+If you are using Sendmail and the message ``xxx not available for sendmail
+programs'' appears in your logs, you need to create a symlink from
+<TT>smrsh</TT>'s (Sendmail's restricted shell utility) directory for
+restricted programs to the actual <TT>ask.py</TT> executable. Under RedHat
+Linux, this directory is normally <TT>/etc/smrsh</TT> but it changes from
+Unix to Unix. For more details on this issue (and exact instructions on how
+to create the symlink), please visit The Sendmail FAQ, Section 3.34 at
+<A NAME="tex2html8"
+  HREF="http://www.sendmail.org/faq/section3.html#3.34">http://www.sendmail.org/faq/section3.html#3.34</A>.
+
+<P>
+
+<H3><A NAME="SECTION00043200000000000000">
+2.3.2 Alternative Exim Installation</A>
+</H3>
+
+<P>
+Joe Vaughan was kind enough to supply an alternative way of installing ASK
+with Exim. This method requires some modifications to be performed on Exim's
+configuration file (<TT>/etc/exim.conf</TT>), so root access (and some
+familiarity with Exim 3) are required.
+
+<P>
+You don't need to use this method to make ASK work with Exim. You can use the
+<TT>.forward</TT> mechanism as described in previous sections.
+
+<P>
+First, edit your <TT>/etc/exim.conf</TT> file and locate the ``Transports''
+section. Add the following lines:
+
+<P>
+<PRE>
+ask_pipe:
+  driver = pipe
+  command="/usr/bin/ask.py --loglevel=10 --logfile=/home/$local_part/ask.log"
+  return_path_add
+  delivery_date_add
+  envelope_to_add
+  check_string = "From "
+  escape_string = "&gt;From "
+  user = $local_part
+  group = mail
+</PRE>
+<P>
+Install ASK from the RPM or DEB packages if use this configuration. This will
+guarantee that the <TT>ask.py</TT> script is installed under <TT>/usr/bin</TT>.
+
+<P>
+The next step is to locate locate the ``Directors'' section. Add a new
+director with the lines:
+
+<P>
+<PRE>
+ask:
+  driver = localuser
+  transport = ask_pipe
+  require_files = ${local_part}:+${home}:+${home}/.askrc:+/usr/bin/ask.py
+  no_verify
+</PRE>
+<P>
+Change the directories to suit your needs
+
+<P>
+The new director is called ``ask''. Order matters. You can put it before or
+after your ``procmail'' director, depending which one you want executed first.
+Don't forget to restart exim after you finish the changes.
+
+<P>
+This will provide ASK to all users on the system. Note that individual users
+must still run <TT>asksetup.py</TT> to create the <TT>.askrc</TT> directory,
+copy the template <TT>.askrc</TT> file, etc.
+
+<P>
+
+<H3><A NAME="SECTION00043300000000000000">
+2.3.3 Qmail Users</A>
+</H3>
+
+<P>
+If you're using Qmail, edit the <TT>.qmail</TT> file under your home directory
+and add the following line:
+
+<P>
+<PRE>
+| preline /path_to_ask/ask.py --loglevel=5 --logfile=/your_home/ask.log
+</PRE>
+<P>
+Make sure this file is not readable by anyone else. At the command prompt, type:
+
+<P>
+<PRE>
+chmod 600 $HOME/.qmail
+</PRE>
+<P>
+Monitor the log file and change the logging level to 1 when you're satisfied 
+with ASK's operation.
+
+<P>
+
+<H3><A NAME="SECTION00043400000000000000">
+2.3.4 Procmail Users</A>
+</H3>
+
+<P>
+ASK supports procmail directly through the ``-procmail'' switch. In this
+mode, ASK works as a mail filter and returns an error code telling procmail
+whether a message should be delivered or not. If a message needs to be
+de-queued, stdin is substituted and the appropriate code is returned to
+procmail.
+
+<P>
+To use ASK in this fashion, your first procmail rules should be:
+
+<P>
+<PRE>
+--- cut here ---
+:0 fW
+|/path_to_ask/ask.py --procmail --loglevel=5 --logfile=/your_home/ask.log
+
+:0 e
+/dev/null
+--- cut here ---
+</PRE>
+<P>
+Pay special attention to the blank line between the rules. They are
+important. Any rules coming after this block will receive email ``sanitized''
+by ASK.
+
+<P>
+The second rule above instructs procmail to deliver the message to
+<TT>/dev/null</TT> if ASK returns a fail code. If you're truly paranoid, you
+can save those messages to a file instead for later inspection. Keep in mind
+however, that doing so will not alter the fact that ``they'' are after you. It 
+will not stop the voices from talking to you either.
+
+<P>
+As usual, set the logging level to one when you're satisfied with ASK's
+operation.  This will help conserve disk space.
+
+<P>
+
+<H1><A NAME="SECTION00050000000000000000">
+3 Remote Commands</A>
+</H1>
+
+<P>
+ASK checks the ``Subject'' line of incoming mails, looking for special
+strings called ``Remote Commands''. By sending emails to your own account
+using these strings, it is possible to manage the queue, edit the lists and
+others.
+
+<P>
+ASK understand two flavors of remote commands: HTML mode and Text Mode. You
+can select the desired mode by locating editing your <TT>.askrc</TT> file
+and changing the <TT>rc_remote_cmd_htmlmail</TT> parameter to ``on'' or
+``off''. HTML mode requires an HTML capable mail reader. Text Mode can be
+used with any mail reader.
+
+<P>
+To find out about the available remote commands, send yourself a message with
+``ASK HELP'' in the subject. ASK will reply with the list of commands.
+
+<P>
+
+<H2><A NAME="SECTION00051000000000000000">
+3.1 Queue Management</A>
+</H2>
+
+<P>
+When ASK sends a confirmation message, it stores the original message under
+the <TT>$HOME/.ask/queue</TT> directory. The original message remains
+``queued'' until the sender replies to the confirmation. As most spammers
+send their emails using forged return addresses, it is impossible for them
+to reply to the confirmation, causing the original message to remain queued
+forever.
+
+<P>
+It is recommended to check the contents of the queue periodically, removing
+old messages and delivering any messages of interest. You can remotely
+control the contents of your queue by sending yourself an email with the
+string ``ASK PROCESS QUEUE'' in the subject line. ASK will reply with all the
+queued files. You will be able to delete messages, add the message sender
+to one of your lists, dequeue messages, etc. Note that if you're using HTML
+mode, you will be able to click on certain links inside the email to process
+the messages. Text mode users need to edit the message and send it back to
+ASK for processing (A ''Reply'' usually works well).
+
+<P>
+
+<H2><A NAME="SECTION00052000000000000000">
+3.2 List Management</A>
+</H2>
+
+<P>
+It is also possible to edit the lists (whitelist, ignorelist and
+blacklist) via email.  To that purpose, just send yourself a message with
+``ASK&nbsp;EDIT&nbsp;<I>list</I>'', where list is one of ``WHITELIST'', ``IGNORELIST'',
+or ``BLACKLIST.'' ASK will send you back an email with the contents of your
+list and further instructions.
+
+<P>
+
+<H1><A NAME="SECTION00060000000000000000">
+4 Upgrade Instructions</A>
+</H1>
+
+<P>
+<A NAME="sec:upgrade-instructions"></A>
+<P>
+
+<H2><A NAME="SECTION00061000000000000000">
+4.1 From version 2.2 to version 2.4.x</A>
+</H2>
+
+<P>
+No special procedures should be necessary, but you may want to take a look
+at the <TT>sample_askrc</TT> file included in the package as it contains
+instructions on how to activate the new features.
+
+<P>
+<BR><HR>
+<ADDRESS>
+Marco Paganini
+2003-05-28
+</ADDRESS>
+</BODY>
+</HTML>

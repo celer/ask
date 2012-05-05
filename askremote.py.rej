@@ -1,0 +1,20 @@
+--- askremote.py.orig 2009-11-28 21:31:36.000000000 +0100
++++ askremote.py 2009-11-28 21:31:51.000000000 +0100
+@@ -573,7 +573,7 @@
+            fileHandle = open(fileName, "r")
+ 
+            ## Create a new MD5 object
+-           md5sum = md5.new()
++           md5sum = hashlib.md5()
+ 
+            while 1:
+                    buf = fileHandle.readline()
+@@ -668,7 +668,7 @@
+            sendFileHandle = open(filename, "r")
+ 
+            ## Create a new MD5 object
+-           md5sum = md5.new()
++           md5sum = hashlib.md5()
+ 
+            while 1:
+                    buf = sendFileHandle.readline()

@@ -1,0 +1,4 @@
+# Sample ignorelist
+#
+# For more information, please check:
+# http://www.paganini.net/ask

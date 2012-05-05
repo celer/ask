@@ -1,0 +1,227 @@
+[ask]
+
+# ~/.askrc
+#
+# This file contains the defaults to be used by ASK (Active Spam Killer)
+# You can use this file as an example. For that purpose, just move it
+# to ~/.askrc and edit the defaults to your needs.
+#
+# For more information, please consult http://www.paganini.net/ask
+#
+# $Id: ask.rc,v 1.3 2004/10/18 02:42:42 paganini Exp $
+
+# This should be your email addresses. ASK tries to match the incoming mail
+# to determine what email address should be used when sending confirmations.
+# If a match cannot be found, the first address will be used for this purpose.
+rc_mymails    = myuser@mydomain.com , myotheruser@myothermail.com
+
+# This should be your full name
+rc_myfullname = John Doe
+
+# This parameter indicates the name of your default mailbox. ASK knows how
+# to deliver to mbox-style mailboxes and Maildir spools. ASK can also pipe
+# your messages to another command for delivery.
+# 
+# If you're using mbox format (Sendmail & friends), your mailbox is most
+# likely "/var/spool/mail/yourusername" or "/var/mail/yourusername". Qmail
+# users (maildir) should use something like "/your_home/Maildir/". Note the
+# slash at the end of the mailbox name. It indicates ASK that this is a
+# maildir style mailbox.
+#
+# If the mailbox name begins with a "|" (pipe) symbol, ASK assumes that 
+# the output needs to be piped to a program for delivery. If, for instance,
+# you want to forward all email to foo@bar.com, set this parameter to:
+# "|/usr/sbin/sendmail foo@bar.com".
+#
+# DO NOT USE QUOTES in the parameter value. The quotes in the examples above
+# are only there to differentiate the expression from the text.
+#
+# ATTENTION PROCMAIL USERS:
+#
+# When ASK runs with the "--procmail" switch, all messages are automatically
+# delivered to the standard output. This reason for this is to give you a chance
+# to post-process messages using procmail.
+#
+# This however poses a problem with remote commands as those may need to "dequeue"
+# more than one message at a time (which is impossible using the scheme above). 
+# In these cases, ASK will deliver the messages to the mailbox specified here.
+# The messages have an embedded authentication token that will cause their immediate
+# delivery if received by ASK again, so a good option is to set your mailbox to
+# something like:
+#
+# rc_mymailbox = |/usr/sbin/sendmail youruser@yourdomain
+#
+rc_mymailbox = /var/spool/mail/yourlogin
+
+# Your mailkey is some phrase that goes out on every email you send. Make
+# SURE that you have this in your email. A good place for this would be
+# in your signature. YOU MUST CHANGE THIS TO SOMETHING ELSE. Also, DO NOT
+# change it to anything that appears in your headers, like your name or 
+# else ASK will deliver every single email without confirmation.
+#
+# IMPORTANT: DO NOT USE YOUR FIRST AND/OR LAST NAME AS THE MAILKEY. This
+# is too obvious and many spammers know this information. 
+#
+# Note: The mailkey is treated as a regular expression. If you intend to use
+# special signs like "+", "$", "^", and others, escape them with a backslash
+# (like \. \$ etc). If you don't know whether a given character has special a
+# special meaning or not in a regular expression, just escape it.
+rc_mailkey   = My Cow Ate My Homework
+
+# This is used as a 'key' to generate an MD5 signature for the incoming message
+# It can be anything, as long it's unique.
+# WARNING: CHANGE IT BEFORE YOU USE THE PROGRAM. DO NOT CHANGE IT AFTER you
+# install ASK.
+rc_md5_key = Big brother is watching you
+ 
+# ASK can pre-check if senders exists or not by opening a connection to their
+# mail server and simulating a mail delivery. This feature will immediately
+# reject messages coming from invalid senders if the conditions are right. It
+# will not grant access without a confirmation, but it should reduce the
+# number of confirmation messages sent and messages in the pending queue.
+#
+# If you wish to enable this feature, you must have either pydns or the
+# Python ADNS module installed (ASK will first try pydns and then Python ADNS).
+#
+# pydns can be downloaded from:
+# http://pydns.sourceforge.net
+#
+# Python ADNS can be downloaded from:
+# http://dustman.net/andy/python/adns-python/1.0.0
+#
+# Debian/Linux users just need to type "apt-get install python-adns" or
+# "apt-get install python-dns"
+#
+# Make sure your server can connect to port 25 on external hosts and you have
+# a working DNS setup before you activate this feature. If that is not the case,
+# ASK will hang for a long time waiting for an answer.
+#
+# Uncomment the lines below to activate this feature.
+
+# rc_smtp_validate = on
+
+# ASK understands "remote commands", meaning that you can delete messages
+# from your queue, add users to your whitelist, etc, all remotely. This
+# feature can be enable or disable by changing rc_remote_cmd below
+rc_remote_cmd_enabled = on
+
+# There are two ways to use the "remote command" feature: One of them is to
+# have ASK send you a piece of HTML Mail with clickable links what will send
+# the correct emails to yourself in order to perform certain tasks. This may
+# be appropriate for people with HTML capable mailers. On the other hand, if
+# you cannot digest HTML mail, you will use the "text" version of the remote
+# commands
+rc_remote_cmd_htmlmail = off
+
+# The default action for textmode commands is "N" (do nothing), unless the
+# queued message is older than 'rc_remote_cmd_max_age (in days). The default
+# will be OK for most people. If you want all queued messages to default to
+# "Delete", set this to 0.
+#rc_remote_cmd_max_age = 10
+
+# This option controls which headers will be included in the message that goes
+# attached in the confirmation mail and in the nastygram. Some people get 
+# confused when they see the full set of RFC-822 headers. Comment the following
+# line if you want to send the full headers. The default should be reasonable for
+# most people.
+rc_basic_headers = From:,To:,Cc:,Bcc:,Date:,Subject:,Return-Path:,Received:,Message-ID:
+
+# This is the maximum numbers of lines of an attachment to include
+# in the confirmation message. -1 for no limitation. Previous version used 50 by
+# default, but that caused a lot of complaints from people claiming that ASK was being
+# used to reflect spam. The current default is 0, meaning "Send only headers".
+rc_max_attach_lines = 0
+
+# If this option is set to true, emails that do not contain one of your emails 
+# (as listed in rc_mymails) in the "To:" field will be junked. This helps curb
+# a lot of spam that comes without the proper information in the email body. Note,
+# however, that you *MUST* make sure you set *all* your addresses correctly in rc_mymails
+# or grief will ensue. Also, note that this is checked *after* your lists are checked.
+# Default = false.
+# rc_junk_unknown_recipients = false
+
+# If you're having problems with fnctl locking, just uncomment the line below
+# and point the file to a *LOCAL* filesystem. This will cause ASK to use locking
+# on this file, instead of the main mailbox. Most people should leave this alone.
+# rc_lockfile = %(rc_askdir)s/tmp/ask.lock
+
+## Use for ASK programs et al
+rc_askdir = ${HOME}/.ask
+
+## Message queue (default: ~/ask/queue)
+## If this ends in "/", the queue will be in "Maildir" format.
+## This allows easy browsing of the pending queue using IMAP for instance.
+## Example of Maildir queue: ${HOME}/Maildir/.Queue/
+rc_msgdir = %(rc_askdir)s/queue
+
+## Bulk and Junk mailboxes (option re-introduced by popular demand)
+## These parameters define the mailbox where ASK saves Junk and Bulk
+## email messsages. Junk is basically email coming from your own address
+## without the mailkey. Bulk is email coming from mailing-lists not yet
+## on your whitelist. If these parameters are not set (the default), ASK
+## queues those emails and sets X-ASK-Info to indicate the reason.
+
+#rc_junkmailbox = ${HOME}/junk.mbox
+#rc_bulkmailbox = ${HOME}/bulk.mbox
+
+## You guess...
+rc_tmpdir = %(rc_askdir)s/tmp
+
+# This directory contain the confirmation message files
+# They're normally copied from a global location by asksetup. You
+# normally don't need to change them.
+
+rc_confirm_dirs = %(rc_askdir)s/templates
+
+# Emails with your mailkey will be automatically delivered. Setting this
+# variable to one will also cause those senders to be automatically
+# added to your whitelist. It works like that: You send someone an email
+# and that email contains your mailkey. Most people these days reply and
+# keep the entire original email. Ask will "see" the mailkey there and
+# add the sender to the whitelist right away. This seems to be a good
+# idea in most cases.
+rc_whitelist_on_mailkey = true
+
+# These languages will be used to send email. Take a look at the 'templates'
+# subdirectory to have an idea of available languages.  It is recommended to
+# always include english. The order defined here will be the order in which
+# they appear in the confirmation emails.
+
+rc_confirm_langs = en
+
+# Instead of using the scheme above, you can also force a specific
+# file to be used for the confirmation and messages.
+# Note that this is DEPRECATED and may not be supported in future
+# versions of ASK. (Default is COMMENTED OUT and it should remain so)
+#rc_confirm_mailbody   = %(rc_askdir)s/templates/confirm_mailbody.txt
+
+# From ASK 2.3_beta2 on, each list is now split into multiple files:  The
+# whitelist, for example, is now contained in two files: whitelist.txt and
+# whitelist-local.txt. ASK will only use the FIRST file of each list to
+# add content to the list, even though all files on a list will be used to
+# match addresses. The other files (*-local.txt) should be used for local
+# edits. This setup prevents the possibility of conflict between ASK and the
+# avid vi user. :) Also note that if you install ASK globally, you can set a
+# "master" white/ignore list by adding an entry to /etc/ask/listname.
+#
+# If it seems confusing to you, just remember: When editing files locally
+# (vi, emacs, etc) always use whitelist-local.txt, or ignorelist-local.txt.
+
+rc_whitelist  = %(rc_askdir)s/whitelist.txt, %(rc_askdir)s/whitelist-local.txt
+rc_ignorelist = %(rc_askdir)s/ignorelist.txt, %(rc_askdir)s/ignorelist-local.txt
+
+# This is the command used to send confirmation messages. Please note that
+# most MTAs have a 'stub' called sendmail, since they know that most programs
+# call sendmail directly. This default should be OK for most people (you
+# should verify your installation, though).
+#
+# TIP: If you're "trusted" to the mail system (your sysadmin knows what this
+# means) you can use the following line when sending out the confirmations:
+#
+# rc_mta_command = /usr/sbin/sendmail -f '<>' -t < MAILFILE
+#
+# This will cause confirmation messages to be sent with a null return-path.
+# Bounces from invalid addresses will be ignored completely, saving bandwidth
+# and promoting world peace.
+
+rc_mta_command = /usr/sbin/sendmail -t < MAILFILE

@@ -1,0 +1,163 @@
+#!/usr/bin/python
+#------------------------------------------------------------------------------
+#	asksetup
+#
+#	This program will create a skeleton ~/.ask. It should be executed by 
+#	anyone who wishes to use ask.
+#
+#	(C) 2001-2006 by Marco Paganini (paganini@paganini.net)
+#
+#   This file is part of ASK - Active Spam Killer
+#
+#   ASK is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   ASK is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with ASK; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	$Id: asksetup,v 1.6 2006/01/09 04:22:27 paganini Exp $
+#------------------------------------------------------------------------------
+
+import sys
+import os
+
+sys.path.append("/usr/lib/ask")
+sys.path.append("/usr/share/ask")
+
+import askversion
+
+#------------------------------------------------------------------------------
+
+TEMPLATE_DIRS = [
+	"./templates",
+	"/usr/share/ask/templates"
+]
+
+RC_FILES = [ 
+	"./templates/ask.rc",
+	"/usr/share/ask/templates/ask.rc"
+]
+
+SAMPLE_WHITELIST = [ 
+	"./templates/whitelist.txt",
+	"/usr/share/ask/templates/whitelist.txt"
+]
+
+SAMPLE_IGNORELIST = [ 
+	"./templates/ignorelist.txt",
+	"/usr/share/ask/templates/ignorelist.txt"
+]
+
+#------------------------------------------------------------------------------
+
+print "* ASK Setup started"
+
+#------------------------------------------------------------------------------
+#	Check for $HOME
+#------------------------------------------------------------------------------
+
+if not os.getenv("HOME"):
+	print "* ERROR: Installation aborted (see reason below)\n"
+	print "Your $HOME environment variable is not defined."
+	print "Make sure you have it set and pointing to your real home directory."
+	print "Also, don't forget that this program must be run AS THE USER that"
+	print "will be using ASK (not the system administrator)\n"
+	sys.exit(1)
+
+print "* HOME environment variable is OK"
+
+#------------------------------------------------------------------------------
+#	Check for previous ask versions ($HOME/.ask and $HOME/.askrc)
+#------------------------------------------------------------------------------
+
+askdir = os.environ["HOME"] + "/.ask"
+askrc  = os.environ["HOME"] + "/.askrc"
+
+for fname in [ askdir, askrc ]:
+	if os.path.exists(fname):
+		print "* ERROR: Installation aborted (see reason below)\n"
+		print "There's already a directory (or a file) called \"%s\"" % fname
+		print "Please move it to another name and try again\n"
+		sys.exit(1)
+
+#------------------------------------------------------------------------------
+#	Check for source files
+#------------------------------------------------------------------------------
+
+rc_file            = ""
+template_dir       = ""
+
+for fname in TEMPLATE_DIRS:
+	if os.path.isdir(fname):
+		template_dir = fname
+		print "* Will copy templates from %s" % template_dir
+		break
+
+for fname in RC_FILES:
+	if os.path.isfile(fname):
+		rc_file = fname
+		print "* Will copy the main configuration file (%s) from %s" % (askrc, rc_file)
+		break
+
+if rc_file == "":
+	print "* ERROR: Cannot find the sample configuration file. Installation aborted."
+	sys.exit(1)
+	
+#------------------------------------------------------------------------------
+# Sample whitelist
+#------------------------------------------------------------------------------
+
+for fname in SAMPLE_WHITELIST:
+	if os.path.isfile(fname):
+		whitelist_file = fname
+		print "* Will copy the whitelist sample file from %s" % fname
+		break
+
+if whitelist_file == "":
+	print "* ERROR: Cannot find the sample whitelist file. Installation aborted."
+	sys.exit(1)
+
+#------------------------------------------------------------------------------
+# Sample ignorelist
+#------------------------------------------------------------------------------
+
+for fname in SAMPLE_IGNORELIST:
+	if os.path.isfile(fname):
+		ignorelist_file = fname
+		print "* Will copy the ignorelist sample file from %s" % fname
+		break
+
+if ignorelist_file == "":
+	print "* ERROR: Cannot find the sample ignorelist file. Installation aborted."
+	sys.exit(1)
+
+#------------------------------------------------------------------------------
+#	Create directories and copy files
+#------------------------------------------------------------------------------
+
+print "* Creating directories"
+
+os.mkdir(askdir, 0700)
+os.mkdir(askdir + "/templates", 0700)
+os.mkdir(askdir + "/queue", 0700)
+os.mkdir(askdir + "/tmp", 0700)
+
+print "* Copying files (watch for any error messages)"
+
+## This is *VERY* lame, but shutils is not available for Python 1.5.2
+os.system("cp %s/* %s" % (template_dir,   askdir + "/templates"))
+os.system("cp %s %s" % (rc_file, askrc))
+os.system("cp %s %s" % (whitelist_file, askdir))
+os.system("cp %s %s" % (ignorelist_file, askdir))
+
+print "* Installation completed"
+print "* IMPORTANT: Don't forget to edit %s !!!" % askrc
+sys.exit(0)

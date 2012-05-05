@@ -1,0 +1,1340 @@
+#------------------------------------------------------------------------------
+#	askmessage.py
+#
+#	(C) 2001-2006 by Marco Paganini (paganini@paganini.net)
+#
+#   This file is part of ASK - Active Spam Killer
+#
+#   ASK is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   ASK is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with ASK; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	$Id: askmessage.py,v 1.106 2006/01/09 04:22:26 paganini Exp $
+#------------------------------------------------------------------------------
+
+import os
+import os.path
+import sys
+import string
+import rfc822
+import hashlib
+import re
+import time
+import tempfile
+from email.header import decode_header
+import asklog
+import askconfig
+import askmail
+import asklock
+
+#------------------------------------------------------------------------------
+
+class AskMessage:
+	"""
+	This is the main ASK class. 
+	
+	Attributes:
+
+	- tmpfile:       Temporary file containing the mail message
+	- fh:            File handle to the temporary file (do a seek(0) before using)
+	- binary_digest: MD5 digest in binary format
+	- ascii_digest:  MD5 digest in ascii format
+	- conf_md5:      MD5 digest found in the subject
+
+	- msg:	   rfc822 object
+	- md5sum:  md5sum object
+	- log:     LOG object
+	- config:  CONFIG object
+	- mail:    MAIL object
+	"""
+
+	#----------------------------------------------------------------------------------
+	def __init__(self, config, log):
+		"""
+		Initializes the class instance. We need at least a valid CONFIG object 
+		and a valid LOG object.
+		"""
+
+		self.fh = ''
+		self.tmpfile = ''
+		self.binary_digest = '';
+		self.ascii_digest  = '';
+		self.list_match    = '';
+		self.set_conf_md5('');
+
+		## Initialize the LOG, CONFIG and MAIL objects
+
+		self.config        = config
+		self.log           = log
+		self.mail          = askmail.AskMail(self.config, self.log)
+
+		self.mail.fullname = self.config.rc_myfullname;
+
+	#----------------------------------------------------------------------------------
+	def __del__(self):
+		if self.fh:
+			self.fh.close();
+
+		#self.log.write(10, "  __del__(): Removing %s" % self.tmpfile)
+		os.unlink(self.tmpfile)
+
+	#----------------------------------------------------------------------------------
+	def set_conf_md5(self, md5):
+		"""
+		Allows external callers to change the notion of the 'conf_md5',
+		or the md5sum retrieved from the subject line. This is useful
+		for instance, when you wish to process different (queued) files
+		using the methods in this class.
+		"""
+
+		self.conf_md5 = md5
+		
+	#----------------------------------------------------------------------------------
+	def	read(self, input_fh):
+		"""
+		This function will read all data from the passed 'input_fh' into a
+		temporary file. This file will then be used for all sorts of operations
+		needed by this class. 
+		"""
+
+		## tmpfile must be on the same filesystem as ASK's private dir!
+		## We'll use 'rename' later to change it to the definitive location
+		self.tmpfile = "%s/%s.%d.msg" % (self.config.rc_tmpdir, os.path.basename(tempfile.mktemp()), os.getpid())
+		
+		## Create the temp filename and reopen as read/write
+		self.fh = open(self.tmpfile, "w")
+		self.fh.close()
+		self.fh = open(self.tmpfile, "r+b")
+
+		## Create a new MD5 object
+		self.md5sum = hashlib.md5()
+
+		## Copy all the data from the passed file object to the new file
+
+		in_headers = 1
+
+		while 1:
+			buf = input_fh.readline()
+			if (buf == ''):
+				break
+
+			## End of headers?
+			if len(string.strip(buf)) == 0:
+				in_headers = 0
+	
+			## Remove X-ASK-Action headers
+			if in_headers and re.search("^X-ASK-Action:", buf, re.IGNORECASE):
+				continue
+
+			self.md5sum.update(buf)
+			self.fh.write(buf)
+	
+		## Add the md5key to the hash and produce the ASCII digest
+
+		if (self.config.rc_md5_key != ''):
+			self.md5sum.update(self.config.rc_md5_key)
+
+		self.ascii_digest = ''
+		binary_digest = self.md5sum.digest()
+
+		for ch in range(0,len(binary_digest)):
+			self.ascii_digest = self.ascii_digest + "%02.2x" % ord(binary_digest[ch])
+		
+		## Initialize the rfc822 object for our workfile
+
+		self.fh.seek(0)
+		self.msg = rfc822.Message(self.fh, 1)
+
+	#----------------------------------------------------------------------------------
+	def	get_real_sender(self):
+		"""
+		This is just like "get_sender", but the "X-Primary-Address" is not taken into
+		account. Useful for cases where you don't want to use this address (when sending
+		an email back, for instance).
+		"""
+		
+		return(self.get_sender(ignore_header = "X-Primary-Address"))
+
+	#----------------------------------------------------------------------------------
+	def get_sender(self, ignore_header=""):
+		"""
+		Returns a tuple in the format (sender_name, sender_email). Some processing is
+		done to treat X-Primary-Address/Resent-From/Reply-To/From. Headers in "ignore_header"
+		are not checked.
+		"""
+
+		headers = ["X-Primary-Address", "Resent-From", "Reply-To", "From"];
+
+		## Remove unwanted headers
+		def fn_remove(x, y = ignore_header): return(x != y)
+		headers = filter(fn_remove, headers)
+
+		sender_name = ''
+		sender_mail = ''
+
+		for hdr in headers:
+			(sender_name, sender_mail) = self.msg.getaddr(hdr)
+
+			if sender_name == None: sender_name = ''
+			if sender_mail == None: sender_mail = ''
+
+			## Decode sender name and return if found
+			if sender_mail:
+				if sender_name:
+                                       sender_name = decode_header(sender_name)
+                                       sender_name = sender_name[0][0]
+				break
+
+		return(string.rstrip(sender_name), string.rstrip(sender_mail))
+
+	#----------------------------------------------------------------------------------
+	def get_recipients(self):
+		"""
+		Returns a list of tuples in the format (sender_name, sender_email). Note that
+		the list includes the contents of the TO, CC and BCC fields.
+		"""
+		
+		to_list  = self.msg.getaddrlist("To")		## To:
+		cc_list  = self.msg.getaddrlist("Cc")		## Cc:
+		bcc_list = self.msg.getaddrlist("Bcc")		## Bcc:
+
+		recipients = []
+
+		## Master list of recipients
+
+		recipients.extend(to_list)
+		recipients.extend(cc_list)
+		recipients.extend(bcc_list)
+
+		return(recipients)
+
+	#----------------------------------------------------------------------------------
+	def get_subject(self):
+		"""
+		Returns the subject of the message, or '' if none is defined.
+		"""
+
+                subject = decode_header(self.msg.getheader("Subject", ""))
+                return(subject[0][0])
+
+	#----------------------------------------------------------------------------------
+	def get_date(self):
+		"""
+		Returns a tuple containing the broken down date (from the "Date:" field)
+		The tuple contains (year, month, day, hour, minute, second, weekday, julianday,
+		dst_flag) and can be fed directly to time.mktime or time.strftime.
+		"""
+
+		## Lots of messages have broken dates
+		try:
+			tuple = rfc822.parsedate(self.msg.getheader("Date", ""))
+		except:
+			tuple = ''
+
+		return(tuple)
+
+	#------------------------------------------------------------------------------
+	def get_message_id(self):
+		"""
+		Returns the "Message-Id" field or '' if none is defined.
+		"""
+
+		return(self.msg.getheader("Message-Id", ""))
+
+	#------------------------------------------------------------------------------
+	def __inlist(self, filenames, sender=None, recipients=None, subj=None):
+		"""
+		Checks if sender email, recipients or subject match one of the regexps
+		in the given filename array/tuple. If sender/recipient/subject are not
+		specified, the defaults for the current instance will be used.
+		"""
+
+		## Fill in defaults
+		if sender == None:
+			sender = self.get_sender()[1]
+
+		if recipients == None:
+			recipients = self.get_recipients()
+
+		if subj == None:
+			subj = self.get_subject()
+
+		## If the sender is one of our emails, we immediately return false.
+		## This allows the use of "from @ourdomain.com" without having to
+		## worry about matching from ouremail@ourdomain.com
+
+		if self.is_from_ourselves(sender):
+			self.log.write(10, "  __inlist(): We are the sender (%s). No match performed." % sender)
+			self.list_match = ""
+			return 0
+
+		## Test each filename in turn
+
+		for fname in filenames:
+
+			## If the file does not exist, ignore
+			self.log.write(5, "  __inlist(): filename=%s, sender=%s, dest=%s, subject=%s"% (fname, sender, recipients, subj))
+
+			if (os.access(fname, os.R_OK) == 0):
+				self.log.write(5, "  __inlist(): %s does not exist (or is unreadable). Ignoring..." % fname)
+				continue
+			
+			fh = open(fname, "r")
+
+			while 1:
+
+				buf = fh.readline()
+				if (buf == ''):
+					break
+			
+				buf = string.lower(string.rstrip(buf))
+
+				## Ignore comments and blank lines
+				if (buf != '' and buf[0] != '#'):
+					## self.log.write(20,"  __inlist(): regexp=[%s]" % buf)
+
+					## "from re"    matches sender
+					## "to re"      matches destination (to, bcc, cc)
+					## "subject re" matches subject
+					## "header re"  matches a full regexp in the headers
+					## "re"         matches sender (previous behavior)
+
+					strlist = []
+
+					## from
+					res = re.match("from\s*(.*)", buf, re.IGNORECASE)
+					if res:
+						## No blank 'from'
+						if not res.group(1):
+							continue
+
+						regex   = self.__regex_adjust(res.group(1))
+						strlist.append(sender)
+					else:
+						## to
+						res = re.match("to\s*(.*)", buf, re.IGNORECASE)
+						if res:
+							regex = self.__regex_adjust(res.group(1))
+							## Append all recipients
+							for (recipient_name, recipient_email) in recipients:
+								strlist.append(recipient_email)
+						else:
+							## subject
+							res = re.match("subject\s*(.*)", buf, re.IGNORECASE)
+
+							if res:
+								regex = res.group(1)
+								strlist.append(subj)
+							else:
+								## header
+								res = re.match("header\s*(.*)", buf, re.IGNORECASE)
+								if res:
+									regex = res.group(1)
+									strlist.extend(self.msg.headers)
+								else:
+									regex = self.__regex_adjust(buf)
+									strlist.append(sender)
+
+					## Match...
+
+					for str in strlist:
+						try:
+							if (regex and re.search(regex, str, re.IGNORECASE)):
+								self.log.write(5, "  __inlist(): found with re=%s" % buf)
+								self.list_match = buf
+								fh.close()
+								return 1
+						except:
+							self.log.write(1,"  __inlist(): WARNING: Invalid regular expression: \"%s\". Ignored." % regex)
+				else:
+					self.log.write(20, "  __inlist(): ignoring line [%s]" % buf)
+
+			fh.close()
+		
+		self.list_match = ""
+		return 0
+
+	#------------------------------------------------------------------------------
+	def __regex_adjust(self, str):
+		"""
+		Returns the "adjusted" regular expression to be used in matching
+		email items. If the regular expression itself matches xxx@xxx, we
+		assume a full address match is desired (we try to match using ^re$ or
+		else r@boo.org would also match spammer@boo.org). Otherwise, just use
+		a regular regexp to match anywhere.
+		"""
+
+		if re.search(".+@.+", str):
+			return("^" + str + "$")
+		else:
+			return(str)
+
+	#------------------------------------------------------------------------------
+	def is_from_ourselves(self, email = None):
+		"""
+		Returns true if the sender is one of our emails. Use 'email' instead of
+		the current sender if specified.
+		"""
+
+		if not email:
+			email = string.lower(self.get_sender()[1])
+
+		if (email in map(string.lower, self.config.rc_mymails)):
+			return 1
+		else:
+			return 0
+	
+	#------------------------------------------------------------------------------
+	def is_in_whitelist(self):
+		"""
+		Returns true if this message is in the whitelist. False otherwise
+		"""
+		if self.__inlist(self.config.rc_whitelist):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def is_in_ignorelist(self):
+		"""
+		Returns true if this message is in the ignorelist. False otherwise
+		"""
+		if self.__inlist(self.config.rc_ignorelist):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def has_our_key(self):
+		"""
+		Returns true if this message contains our mailkey. False otherwise
+		"""
+		if self.__contains_string(self.config.rc_mailkey):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def is_from_mailerdaemon(self):
+		"""
+		Returns true if this message comes from MAILER-DAEMON. False otherwise
+		"""
+
+		if re.match("mailer-daemon|postmaster@|<>", self.get_sender(ignore_header = "Reply-To")[1], re.IGNORECASE):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def sent_by_ask(self):
+		"""
+		Looks for the X-AskVersion rfc822 header. If one is found, we assume ASK
+		sent the message and we return true. Otherwise, we return false.
+		"""
+
+		if self.__contains_string("^X-AskVersion:"):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def valid_smtp_sender(self):
+		"""
+		Uses mail.smtp_validate to check the sender's address. Return true if 
+		probably valid, 0 if definitely invalid.
+		"""
+
+		ret = self.mail.smtp_validate(email         = self.get_sender()[1], 
+									  envelope_from = self.get_matching_recipient())
+
+		self.log.write(5, "  valid_smtp_sender: SMTP authentication returned %d" % ret)
+
+		## Returns possibly valid in case of errors.
+
+		if ret != 0:
+			return 1
+		else:
+			return 0
+			
+	#------------------------------------------------------------------------------
+	def	deliver_mail(self, x_ask_info="Delivering Mail"):
+		"""
+		Delivers the current mail to the mailbox contained in self.config.rc_mymailbox
+		or to stdout if in filter or procmail mode.
+		"""
+
+		## Deliver to stdout if using procmail/filter
+		if self.config.procmail_mode or self.config.filter_mode:
+			mailbox = "-"
+		else:
+			mailbox = self.config.rc_mymailbox
+
+		self.log.write(1, "  deliver_mail(): Delivering mail")
+		self.mail.deliver_mail_file(mailbox,
+									self.tmpfile,
+									x_ask_info = x_ask_info,
+									custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def	junk_mail(self, x_ask_info="Junk"):
+		"""
+		Queues the current mail with a status of "Junk" or delivers to
+		rc_junkmailbox if is defined in the config file.
+		"""
+
+		if self.config.rc_junkmailbox:
+			self.log.write(1,"  junk_mail(): Saving message to %s" % self.config.rc_junkmailbox)
+			self.mail.deliver_mail_file(self.config.rc_junkmailbox,
+										self.tmpfile,
+										x_ask_info = x_ask_info,
+										custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+		else:
+			self.log.write(1, "  junk_mail(): Queueing Junk Message")
+			self.queue_mail(x_ask_info = x_ask_info)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def	bulk_mail(self, x_ask_info="Bulk"):
+		"""
+		Queues the current mail with a status of "Bulk" or delivers to
+		rc_bulkmailbox if is defined in the config file.
+		"""
+
+		if self.config.rc_bulkmailbox:
+			self.log.write(1,"  bulk_mail(): Saving message to %s" % self.config.rc_bulkmailbox)
+			self.mail.deliver_mail_file(self.config.rc_bulkmailbox,
+										self.tmpfile,
+										x_ask_info = x_ask_info,
+										custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+		else:
+			self.log.write(1, "  bulk_mail(): Queueing Bulk Message")
+			self.queue_mail(x_ask_info = x_ask_info)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def queue_mail(self, x_ask_info="Message Queued"):
+		"""
+		Queues the current message. The queue directory and calculated MD5
+		are used to generate the filename. Note that the MD5 reflect the original
+		contents of the message (not the queued one, as headers are added as needed).
+
+		If the message queue directory (rc_askmsg) ends in "/", we assume the
+		queue will be in mqueue format.
+		"""
+
+		self.log.write(5,  "  queue_mail(): x_ask_info = %s" % x_ask_info)
+		self.log.write(5,  "  queue_mail(): The MD5 checksum for %s is %s" % (self.tmpfile, self.ascii_digest))
+
+		## If the msgdir ends in "/" we assume a Maildir style queue. If
+		## not, we have a regular queue.
+
+		if self.config.queue_is_maildir:
+			self.log.write(5, "  queue_mail(): Maildir format. Queue dir = %s" % self.config.rc_msgdir)
+			self.mail.deliver_mail_file(self.config.rc_msgdir,
+										self.tmpfile,
+										x_ask_info = x_ask_info,
+										uniq = self.ascii_digest,
+										custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+		else:
+			queueFileName = self.queue_file()
+			self.log.write(5, "  queue_mail(): Mailbox format. Queue file = %s" % queueFileName)
+			self.mail.deliver_mail_file(queueFileName,
+										self.tmpfile,
+										x_ask_info,
+										custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+		
+		return 0
+
+	#------------------------------------------------------------------------------
+	def send_confirmation(self):
+		"""
+		Sends a confirmation message back to the sender.
+		"""
+
+		queueFileName = self.queue_file()
+
+ 		self.mail.mailfrom = self.get_matching_recipient()
+ 
+ 		self.log.write(1, "  send_confirmation(): Sending confirmation from %s to %s" % (self.mail.mailfrom, self.get_real_sender()[1]))
+
+		## Add Precedence: bulk and (if appropriate) "In-Reply-To"
+
+		header_list = [ "X-ASK-Auth: %s" % self.generate_auth(), "Precedence: bulk", "Content-Type: text/plain; charset=\"iso-8859-1\"", "Content-Transfer-Encoding: 8bit" ]
+
+		msgid = self.get_message_id()
+
+		if msgid:
+			header_list.append("In-Reply-To: %s" % msgid)
+		
+		if (self.__check_confirm_list(self.get_real_sender()[1])):
+			self.mail.send_mail(self.get_real_sender()[1],
+							"Please confirm (conf#%s)" % self.ascii_digest,
+							self.config.rc_confirm_filenames,
+							[queueFileName],
+							custom_headers = header_list,
+							max_attach_lines = self.config.rc_max_attach_lines)
+
+			self.log.write(1, "  send_confirmation(): Confirmation sent to %s..." % self.get_real_sender()[1])
+		else:
+			self.log.write(1, "  send_confirmation(): too many confirmations already sent to %s..." % self.get_real_sender()[1])
+
+	#------------------------------------------------------------------------------
+
+	def	__check_confirm_list(self, address):
+		"""
+		Adds address to the list of confirmation targets.
+		Returns true if this confirmation should be sent.
+		Returns false otherwise.
+		"""
+		
+		name = address + "\n"
+
+		queue_file_name = "%s/.ask-loop-control.dat"  % self.config.rc_askdir
+
+		## Confirmation list file will be created if it does not exist
+		if not os.path.exists(queue_file_name):
+			queue_file_handle = open(queue_file_name, "w")
+			queue_file_handle.close()
+
+		## Lock
+		queue_file_handle = asklock.AskLock()
+		lockf = ""
+
+		if self.config.rc_lockfile != "":
+			lockf = self.config.rc_lockfile + "." + os.path.basename(queue_file_name)
+		else:
+			lockf = queue_file_name
+
+		queue_file_handle.open(queue_file_name, "r+", lockf)
+
+		## Read all stuff from .ask-loop-control.dat
+
+		if os.path.exists(queue_file_name):
+			queue_file_handle.seek(0)
+			confirm_list = queue_file_handle.readlines()
+		else:
+			confirm_list = []
+
+		confirm_list.append(name)
+
+		## Trim list
+		if len(confirm_list) > self.config.rc_max_confirmation_list:
+			del confirm_list[0:self.config.rc_max_confirmation_list - self.config.rc_min_confirmation_list]
+
+		## Rewrite trimmed list and release lock
+
+		queue_file_handle.seek(0)
+		queue_file_handle.truncate(0)
+		queue_file_handle.writelines(confirm_list)
+
+		queue_file_handle.close()
+
+		## More than max_confirmations?
+		if (confirm_list.count(name) > self.config.rc_max_confirmations):
+			return 0
+
+		return 1
+	#------------------------------------------------------------------------------
+
+	def	queue_file(self, md5str=""):
+		"""
+		Returns the full path to the queue file of the current message
+		(self.ascii_digest). The 'md5' parameter can be used to override
+		the MD5 checksum. If the queue is in maildir format, the queue
+		directory will be opened and the first file containing the MD5
+		will be returned.
+		"""
+		
+		if not md5str:
+			md5str = self.ascii_digest
+
+		if self.config.queue_is_maildir:
+
+			## Original Path if Maildir
+			maildir = string.replace(self.config.rc_msgdir, "/cur", "")
+			maildir = string.replace(maildir, "/new", "")
+			maildir = string.replace(maildir, "/tmp", "")
+
+			## /cur
+			file_list = filter(lambda x,md5str_in = md5str: (string.find(x, md5str_in) != -1), os.listdir(maildir + "cur"))
+
+			if len(file_list) != 0:
+				return(os.path.join(maildir + "cur", file_list[0]))
+
+			## /new
+			file_list = filter(lambda x,md5str_in = md5str: (string.find(x, md5str_in) != -1), os.listdir(maildir + "new"))
+
+			if len(file_list) != 0:
+				return(os.path.join(maildir + "new", file_list[0]))
+
+			## Nothing found, return blank
+			return ""
+
+		else:
+			return "%s/ask.msg.%s" % (self.config.rc_msgdir, md5str)
+
+	#------------------------------------------------------------------------------
+
+	def	discard_mail(self, x_ask_info="Discard", mailbox = '', via_smtp = 0):
+		"""
+		This method will deliver the current message to stdout and append a
+		'X-ASK-Action: Discard' header to it. This will only happen if we're
+		operating in "filter" mode.
+		"""
+
+		if not self.config.filter_mode:
+			return
+
+		self.log.write(10, "  discard_mail: Sending email to stdout with X-ASK-Action: Discard")
+
+		self.mail.deliver_mail_file("-",
+									self.tmpfile,
+									x_ask_info = x_ask_info,
+									custom_headers = [ "X-ASK-Action: Discard",
+													   "X-ASK-Auth: " + self.generate_auth() ])
+
+		return 0
+
+	#------------------------------------------------------------------------------
+
+	def	dequeue_mail(self, x_ask_info="Message dequeued", mailbox = '', via_smtp = 0):
+		"""
+		Dequeues (delivers) mail in the queue directory to the current user.
+		The queued message will be directly appended to the mailbox. The 'mailbox'
+		parameter can be specified to force delivery to something different than
+		the default config.rc_mymailbox.
+		"""
+
+		if not mailbox:
+			## Deliver to stdout if using procmail/filter
+			if self.config.procmail_mode or self.config.filter_mode:
+				mailbox = "-"
+			else:
+				mailbox = self.config.rc_mymailbox
+
+		queueFileName = self.queue_file(self.conf_md5)
+		self.log.write(1, "  dequeue_mail(): Delivering mail from %s to mailbox %s" % (queueFileName, mailbox))
+
+		if via_smtp:
+			self.mail.mailfrom = self.config.rc_mymails[0]
+
+			self.mail.send_mail_file(self.config.rc_mymails[0],
+								  	 queueFileName,
+									 x_ask_info = x_ask_info,
+									 custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+		else:
+			self.mail.deliver_mail_file(mailbox,
+										queueFileName,
+										x_ask_info = x_ask_info,
+										custom_headers = [ "X-ASK-Auth: " + self.generate_auth() ])
+
+		os.unlink(queueFileName)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+
+	def	delete_mail(self, x_ask_info="No further info"):
+		"""
+		Deletes queued file in the queue directory.
+		"""
+
+		queueFileName = self.queue_file(self.conf_md5)
+		os.unlink(queueFileName)
+
+		self.log.write(1, "  delete_mail(): Queued file %s deleted" % queueFileName)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def	is_queued(self):
+		"""
+		Checks if a queued message exists matching the current MD5 signature.
+		"""
+
+		queueFileName = self.queue_file()
+
+		if (os.access(queueFileName, os.F_OK) == 1):
+			self.log.write(1, "  is_queued(): File %s found. Message is queued" % queueFileName)
+			return 1
+		else:
+			self.log.write(1, "  is_queued(): File %s not found. Message is not queued" % queueFileName)
+			return 0
+
+	#------------------------------------------------------------------------------
+	def	confirmation_msg_queued(self):
+		"""
+		Returns true if the current message is a confirmation message AND
+		a queued message exists. False otherwise.
+		"""
+
+		queueFileName = self.queue_file(self.conf_md5)
+
+		if (os.access(queueFileName, os.F_OK) == 1):
+			self.log.write(1, "  confirmation_msg_queued(): File %s found. Message is queued" % queueFileName)
+			return 1
+		else:
+			self.log.write(1, "  confirmation_msg_queued(): File %s not found. Message is not queued" % queueFileName)
+			return 0
+
+	#------------------------------------------------------------------------------
+	def is_confirmation_return(self):
+		"""
+		Checks whether the message subject is a confirmation. If so, self.conf_md5
+		will be set to the MD5 hash found in the subject true will be returned.
+		"""
+
+		subject = self.get_subject()
+
+		self.log.write(10, "  is_confirmation_return(): Subject=" + subject)
+
+		res = re.search("\(conf[#:]([a-f0-9]{32})\)", subject, re.IGNORECASE)
+
+		if (res == None):
+			self.log.write(1, "  is_confirmation_return(): Didn't find conf#MD5 tag on subject")
+			self.conf_md5 = ''
+			return 0
+		else:
+			self.log.write(1, "  is_confirmation_return(): Found conf$md5 tag, MD5=%s" % res.group(1))
+			self.conf_md5 = res.group(1)
+			return 1
+
+	#------------------------------------------------------------------------------
+	def add_queued_msg_to_whitelist(self):
+		"""
+		Adds the sender in the message pointed to by 'conf_md5' to the whitelist.
+		"""
+
+		queueFileName   = self.queue_file(self.conf_md5)
+
+		## Create a new AskMessage instance with the queued file
+		aMessage        = AskMessage(self.config, self.log)
+		queueFilehandle = open(queueFileName, "r")
+
+		aMessage.read(queueFilehandle)
+		queueFilehandle.close()
+
+		self.log.write(1, "  add_queued_msg_to_whitelist(): Adding message %s to whitelist" % queueFileName)
+		aMessage.add_to_whitelist()
+
+	#------------------------------------------------------------------------------
+	def add_to_whitelist(self, regex = None):
+		"""
+		Adds the current sender or the optional 'regex' to the whitelist.
+		"""
+
+		if not regex:
+			regex = self.get_sender()[1]
+			
+		self.__add_to_list(self.config.rc_whitelist, regex)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def add_to_ignorelist(self, regex = None):
+		"""
+		Adds the current sender or the optional 'regex' to the ignorelist.
+		"""
+
+		if not regex:
+			regex = self.get_sender()[1]
+
+		self.__add_to_list(self.config.rc_ignorelist, regex)
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def remove_from_whitelist(self, email):
+		"""
+		Remove the passed email from the whitelist.
+		"""
+
+		self.__remove_from_list(self.config.rc_whitelist, email)
+		return 0
+
+	#------------------------------------------------------------------------------
+	def remove_from_ignorelist(self, email):
+		"""
+		Remove the passed email from the ignorelist.
+		"""
+
+		self.__remove_from_list(self.config.rc_ignorelist, email)
+		return 0
+
+	#-----------------------------------------------------------------------------
+	def __add_to_list(self, filenames, email=None):
+		"""
+		Adds the specified 'email' to the first filename in the array 'filenames'.
+		Defaults to using the current sender if none is specified.
+		"""
+
+		## Defaults
+		if email == None:
+			email = self.get_sender()[1]
+
+		## Make sure it's not one of our own emails...
+		if self.is_from_ourselves(email):
+			self.log.write(1, "  __add_to_list(): \"%s\" is listed as one of our emails. It will not be added to the list (%s)" % (email, filenames[0]))
+			return -1
+
+		## Do not add if it's already there... (Compare sender only)
+		if self.__inlist(filenames,
+						 sender     = email,
+						 recipients = [("*IGNORE*","*IGNORE*")],
+						 subj       = "*IGNORE*"):
+			self.log.write(1, "  __add_to_list(): \"%s\" is already present in \"%s\". It will not be re-added" % (email, filenames[0]))
+			return -1
+
+		self.log.write(10, "  __add_to_list(): filename=%s, email=%s" % (filenames[0], email))
+
+		lck = asklock.AskLock()
+
+		lockf = ""
+		if self.config.rc_lockfile != "":
+			lockf = self.config.rc_lockfile + "." + os.path.basename(filenames[0])
+
+		lck.open(filenames[0], "a", lockf)
+		
+		## We suppose the file is unlocked when we get here...
+		lck.write("from " + self.__escape_regex(email) + "\n")
+		lck.close()
+
+		self.log.write(1, "  __add_to_list(): \"%s\" added to %s" % (email, filenames[0]))
+
+		return 0
+
+	#-----------------------------------------------------------------------------
+	def __remove_from_list(self, filenames, email=None):
+		"""
+		Removes the specified 'email' from the first filename in the array 
+		'filenames'. Note that entries that would allow this list to match are 
+		NOT removed, but instead the email passed is used as the regexp in the
+		match. This is so to avoid removing more generic regexps added by
+		the user.
+
+		Note that unlike "add_to_list", email is a mandatory parameter
+		(for security reasons).
+
+		"""
+
+		## Make sure it's not one of our own emails...
+		if self.is_from_ourselves(email):
+			self.log.write(1, "  __remove_from_list: \"%s\" is listed as one of our emails. It will not be removed from the list (%s)" % (email, filenames[0]))
+			return -1
+
+		self.log.write(10, "  __remove_from_list: filename=%s, email=%s" % (filenames[0], email))
+
+		lck = asklock.AskLock()
+
+		lockf = ""
+		if self.config.rc_lockfile != "":
+			lockf = self.config.rc_lockfile + "." + os.path.basename(filenames[0])
+
+		lck.open(filenames[0], "r+", lockf)
+		
+		## We read the whole file in memory and re-write without
+		## the passed email. Note that we expect the file to fit in memory.
+
+		oldlist = lck.readlines()
+		newlist = []
+
+		## email must be alone on a line
+		email = "^" + email + "$"
+		
+		for regex in listarray:
+			if not re.match(regex, email, re.IGNORECASE):
+				newlist.append(regex)
+				
+		lck.seek(0)
+		lck.writelines(newlist)
+		lck.close()
+
+		return 0
+
+	#------------------------------------------------------------------------------
+	def invalid_sender(self):
+		"""
+		Performs some basic checking on the sender's email and return true if
+		it seems to be invalid.
+		"""
+
+		sender_email = self.get_sender()[1]
+
+		if (sender_email == '' or string.find(sender_email, '@') == -1 or string.find(sender_email,'|') != -1):
+			self.log.write(1, "  invalid_sender(): Malformed 'From:' line (%s). " % sender_email)
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def is_mailing_list_message(self):
+		"""
+		We try to identify (using some common headers) whether this message comes
+		from a mailing list or not. If it does, we return 1. Otherwise, return 0
+		"""
+
+		if (self.msg.getheader("Mailing-List",'') != '' or
+			self.msg.getheader("List-Id",'')      != '' or
+			self.msg.getheader("List-Help",'')    != '' or
+			self.msg.getheader("List-Post",'')    != '' or
+			self.msg.getheader("Return-Path",'')  == '<>' or
+			re.match("list|bulk", self.msg.getheader("Precedence",''), re.IGNORECASE) or
+			re.match(".*(majordomo|listserv|listproc|netserv|owner|bounce|mmgr|autoanswer|request|noreply|nobody).*@", self.msg.getheader("From",''), re.IGNORECASE)):
+			return 1
+		else:
+			return 0
+
+	#------------------------------------------------------------------------------
+	def __escape_regex(self, str):
+		"""
+		Escapes dots and other meaningful characters in the regular expression.
+		Returns the "escaped" string. This routine is pretty dumb meaning that
+		it does not know how to handle an already escaped string. Use only in
+		"raw", unescaped strings.
+		"""
+		
+		evil_chars = "\\.^$*+|{}[]";
+
+		for var in evil_chars:
+			str = string.replace(str, var, "\\"+var)
+
+		return(str)
+
+	#------------------------------------------------------------------------------
+	def generate_auth(self):
+		"""
+		Generates an authentication string containing the current time and the
+		MD5 sum of the current time + our rc5_key. This is normally sent out
+		in every email generated by ASK in the X-ASK-Auth: email header.
+		"""
+
+		md5sum = hashlib.md5()
+
+		## number of seconds since epoch as a string
+		numsecs = "%d" % int(time.time())
+
+		md5sum.update(numsecs)					## Seconds and...
+		md5sum.update(self.config.rc_md5_key)	## md5 key...
+	
+		ascii_md5 = ''
+
+		for ch in range(0,len(md5sum.digest())):
+			ascii_md5 = ascii_md5 + "%02.2x" % ord(md5sum.digest()[ch])
+		
+		self.log.write(5, "  generate_auth(): Authentication = %s-%s" % (numsecs, ascii_md5))
+
+		return "%s-%s" % (numsecs, ascii_md5)
+
+	#------------------------------------------------------------------------------
+	def __get_auth_tokens(self, body = 0):
+		"""
+		Reads and parse the authorization string from the X-ASK-Auth SMTP header or
+		from the email body, if the 'body' parameter is set to 1.  Normally, a tuple
+		in the format (int(numsecs),md5sum) is returned. If the header does not exist
+		or cannot be parsed, ("","") is returned.
+		"""
+
+		## Auth string may come from the body or from the headers
+
+		authstring = None
+
+		if body:
+			self.msg.rewindbody()
+
+			## Skip headers (until first blank line)
+			while string.strip(self.msg.fp.readline()):
+				pass
+
+			## Search for Auth Token
+			while 1:
+				buf = self.msg.fp.readline()
+				if buf == '':
+					break
+
+				res = re.search("X-ASK-Auth: ([0-9]*)-([0-9a-f]*)", buf, re.IGNORECASE)
+
+				if res:
+					authstring = buf
+					break
+		else:
+			authstring = self.msg.getheader("X-ASK-Auth", "")
+
+		if not authstring:
+			self.log.write(1, "  __get_auth_tokens(): No X-ASK-Auth SMTP header found")
+			return ("","")
+
+		self.log.write(5, "  __get_auth_tokens(): Authentication string = [%s]" % authstring)
+
+		## Parse age and MD5
+		res = re.search("([0-9]*)-([0-9a-f]*)", authstring, re.IGNORECASE)
+
+		if not res:
+			self.log.write(1, "  __get_auth_tokens(): Cannot parse X-ASK-Auth SMTP header")
+			original_time = 0
+			original_md5 = None
+		else:
+			original_time = int(res.group(1))
+			original_md5  = res.group(2)
+
+		return(int(original_time), original_md5)
+
+	#------------------------------------------------------------------------------
+	def validate_auth_md5(self, body = 0):
+		"""
+		Validates the MD5sum part of the X-ASK-Auth SMTP header. 
+		Returns 1 if the authentication is valid, zero otherwise. If body = 1,
+		the authentication token will be performed in the email's body as 
+		opposed to the headers.
+		"""
+
+		(original_time, original_ascii_md5) = self.__get_auth_tokens(body = body)
+
+		if not original_ascii_md5:
+			self.log.write(1, "  validate_auth_md5(): Cannot read authorization tokens. Authentication Failed.")
+			return 0
+
+		## Check the md5sum (original_time + rc_md5_key)
+		md5sum = hashlib.md5()
+		md5sum.update("%s" % original_time)		## Seconds and...
+		md5sum.update(self.config.rc_md5_key)	## md5 key...
+	
+		ascii_md5 = ''
+
+		for ch in range(0,len(md5sum.digest())):
+			ascii_md5 = ascii_md5 + "%02.2x" % ord(md5sum.digest()[ch])
+		
+		## Compare
+		if ascii_md5 == original_ascii_md5:
+			self.log.write(1, "  validate_auth_md5(): Authentication succeeded")
+			return 1
+		else:
+			self.log.write(1, "  validate_auth_md5(): MD5 tokens do not match (should be %s). Authentication failed" % ascii_md5)
+			return 0
+
+	#------------------------------------------------------------------------------
+	def validate_auth_time(self, maxdays, body = 0):
+		"""
+		Validates the time part of the X-ASK-Auth SMTP header. 
+		Returns 1 if the authentication is valid (newer than maxdays), 0 if not.
+		if body == 1, the authentication will be performed in the email's
+		body, as opposed to the headers.
+		"""
+
+		(original_time, original_ascii_md5) = self.__get_auth_tokens(body = body)
+
+		if not original_ascii_md5:
+			self.log.write(1, "  validate_auth_time(): Cannot read authorization tokens. Authentication Failed.")
+			return 0
+
+		## Check if original_time is older than 'maxdays' days.
+
+		current_time = int(time.time())
+
+		if (original_time >= (current_time - (maxdays * 86400))):
+			self.log.write(1, "  validate_auth_time(): Time Authentication succeeded")
+			return 1
+		else:
+			self.log.write(1, "  validate_auth_time(): Auth time is older than %d days. Authentication failed" % maxdays)
+			return 0
+
+	#------------------------------------------------------------------------------
+	def summary(self, maxlen = 150):
+		"""
+		Returns a string containing a preview of the current message. HTML
+		code will be stripped from the input. At most 'maxlen' bytes will
+		be copied from the original mail.
+		"""
+
+		self.msg.rewindbody()
+
+		content_boundary = ''
+
+		## Skip to "boundary" if Content-type == multipart
+		content_type     = self.msg.getheader("Content-Type", "")
+
+		res = re.search("boundary.*=.*\"(.*)\"", content_type, re.IGNORECASE)
+		if not res:
+			res = re.search("boundary.*=[ ]*(.*)[, ]*", content_type, re.IGNORECASE)
+
+		if res:
+			content_boundary = res.group(1)
+			self.log.write(10, "  summary: content_boundary = %s" % content_boundary)
+
+			# Skip to Content-Boundary, if any
+
+			found = 0
+			while 1:
+				buf = self.msg.fp.readline()
+
+				if buf == '':
+					break
+
+				if string.find(buf, content_boundary) != -1:
+					found = 1
+					break
+			
+			if found:
+				## Skip until first blank line or EOF
+				while 1:
+					buf = string.strip(self.msg.fp.readline())
+					if not buf:
+						break
+			else:
+				## There is a content-type/boundary but we couldn't 
+				## find one. Just rewind the message body to the start of it.
+				self.msg.rewindbody()
+					
+		## We read the next 100 lines skipping "content-boundary" (if any)
+		## and stopping at the end-of-file if found first.
+
+		result  = ''
+		buf   	= ''
+		lines   = 100
+
+		while lines > 0:
+			buf = self.msg.fp.readline()
+			if buf == '' or (content_boundary != '' and string.find(buf, content_boundary) != -1):
+				break
+
+			result = result + string.strip(buf) + " "
+
+		result = self.strip_html(result)
+		result = string.rstrip(result)
+		result = string.lstrip(result)
+
+		if len(result) > maxlen:
+			result = result[0:maxlen] + "(...)"
+
+		return result
+
+	#------------------------------------------------------------------------------
+	def __contains_string(self, regexp):
+		"Returns line containing string if regexp matches any line in the current message"
+
+		self.fh.seek(0)
+
+		while 1:
+
+			buf = self.fh.readline()
+
+			if (buf == ''):
+				break
+		
+			try:
+				if (re.search(regexp, buf, re.IGNORECASE)):
+					return buf
+			except:
+				self.log.write(1,"  __contains_string(): WARNING: Invalid regular expression: \"%s\". Ignored." % regexp)
+
+		return ""
+
+	#------------------------------------------------------------------------------
+	def __save_to(self, dest):
+		"""
+		Saves the current message text into file 'dest'
+		"""
+		
+		self.log.write(5, "  __save_to(): Copying to %s" % dest)
+
+		self.fh.seek(0)
+		fh_output = open(dest, "w")
+
+		while 1:
+			buf = self.fh.readline()
+
+			if buf == '':
+				break
+
+			fh_output.write(buf)
+
+		fh_output.close()
+
+	#------------------------------------------------------------------------------
+	def match_recipient(self):
+		"""
+		This function will try to match the recipient of the message in the list
+		of recipients contained in the rc_mymails array. If one is found, it is
+		returned. Otherwise, it returns None.
+		"""
+
+		for (recipient_name, recipient_mail) in self.get_recipients():
+			for our_address in self.config.rc_mymails:
+				if recipient_mail == our_address:
+					self.log.write(1, "  match_recipient(): Found a match with %s" % our_address)
+					return our_address
+
+		self.log.write(1, "  match_recipient(): No Match found.")
+
+		return None
+		
+	#------------------------------------------------------------------------------
+	def get_matching_recipient(self):
+		"""
+		This function will call "match_recipient" to determine whether the recipient
+		of the current email is in our list of recipients. If so, the corresponding
+		recipient will be returned. If not, an appropriate default will be chosen
+		(usually the first email in the list rc_mymails).
+		"""
+
+		email = self.match_recipient()
+
+		if not email:
+			email = self.config.rc_mymails[0]
+
+		self.log.write(1, "  get_matching_recipient(): Returning %s" % email)
+
+		return email
+		
+	#------------------------------------------------------------------------------
+
+	def strip_html(self, str):
+		"""
+		Strips all HTML from the input string and returns the stripped string.
+		"""
+
+		import sgmllib, string
+
+		class sgmlstrip(sgmllib.SGMLParser):
+			def __init__(self):
+				self.data = []
+				sgmllib.SGMLParser.__init__(self)
+
+			def unknown_starttag(self, tag, attrib):
+				self.data.append(" ")
+
+			def unknown_endtag(self, tag):
+				self.data.append(" ")
+
+			def handle_data(self, data):
+				self.data.append(data)
+
+			def gettext(self):
+				text = string.join(self.data, "")
+				return string.join(string.split(text)) # normalize whitespace
+
+		try:
+			s = sgmlstrip()
+			s.feed(str)
+			s.close()
+		except sgmllib.SGMLParseError:
+			pass
+
+		return s.gettext()
+
+#------------------------------------------------------------------------------
+
+## EOF ##

@@ -1,0 +1,16 @@
+Document: ask
+Title: Debian ask Manual
+Author: Marco Paganini <paganini@paganini.net>
+Abstract: This manual describes what ASK is and how it can be used.
+Section: mail
+
+Format: PDF
+Files: /usr/share/doc/ask/ask_doc.pdf.gz
+
+Format: text
+Files: /usr/share/doc/ask/ask_doc.txt.gz
+
+Format: HTML
+Files: /usr/share/doc/ask/ask_doc.html.gz
+
+  

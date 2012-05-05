@@ -1,0 +1,41 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH asksenders 1 "2003" GNU "Active Spam Killer Whitelist Generator"
+.SH NAME
+asksenders \- Active Spam Killer Whitelist Generator
+
+.SH SYNOPSIS
+asksenders [\fB--bcc\fR] [\fB--cc\fR] [\fB--to\fR] <mbox_format_mailbox
+
+.SH DESCRIPTION
+Scans the mbox-style mailbox passed on the standard input and outputs rules
+to whitelist all email addresses found in the "From:" field to the standard
+output. The output can be saved into the user's whitelist file (usually
+\fI~/.ask/whitelist.txt\fR), thus causing immediately delivery of emails from
+past correspondents.
+
+.SH OPTIONS
+.IP --bcc
+Also add any addresses in the "Bcc:" field to the output.
+
+.IP --cc
+Also add any addresses in the "Cc:" field to the output.
+
+.IP --to
+Also add any addresses in the "To:" field to the output.
+
+.SH DOCUMENTATION
+
+This program is part of the Active Spam Killer (ASK)'s anti-spam
+tools. ASK's home page and complete documentation can be found at
+\fIhttp://www.paganini.net/ask\fR
+
+.SH BUGS
+Bugs? Where? :)
+.SH AUTHOR
+Marco Paganini <paganini@paganini.net>
+.SH "SEE ALSO"
+.BR askfilter (1),
+.BR asksetup (1),
+.BR procmail (1)

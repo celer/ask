@@ -1,0 +1,36 @@
+ask (2.5.3-1) unstable; urgency=high
+
+  * See ChangeLog file for details.
+
+ -- Marco Paganini <paganini@paganini.net>  Tue,  10 Nov 2005 15:00:00 -0500
+
+ask (2.5.2-1) unstable; urgency=low
+
+  * See ChangeLog file for details.
+
+ -- Marco Paganini <paganini@paganini.net>  Tue,  26 Aug 2005 22:01:51 -0400
+
+ask (2.5.1-1) unstable; urgency=low
+
+  * See ChangeLog file for details.
+
+ -- Marco Paganini <paganini@paganini.net>  Sun, 10 Aug 2003 23:15:00 -0400
+
+ask (2.5.0-1) unstable; urgency=low
+
+  * See ChangeLog file for details.
+
+ -- Marco Paganini <paganini@paganini.net>  Wed, 23 May 2003 21:50:00 -0400
+
+ask (2.4.1-1) stable; urgency=low
+
+  * See ChangeLog file for details.
+
+ -- Marco Paganini <paganini@paganini.net>  Wed, 23 May 2003 18:50:00 -0400
+
+ask (2.4.0-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Marco Paganini <paganini@paganini.net>  Wed, 14 May 2003 14:19:06 -0400
+

@@ -1,0 +1,11 @@
+ << VIGTIG INFORMATION! >>
+
+Dette er en automatisk besked.
+
+Den e-mail, som du har sendt (vedhæftet forneden), kræver
+en bekræftelse før den kan leveres til modtageren. For at
+bekræfte at du har sendt e-mailen, skal du trykke på besvar
+knappen i dit e-mail program nu og returnere denne e-mail
+(Du behøver ikke at skrive noget). Når det er gjort, vil
+du ikke fremover blive spurgt om at bekræfte e-mails.
+

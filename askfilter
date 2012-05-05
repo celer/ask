@@ -1,0 +1,101 @@
+#!/usr/bin/python
+#------------------------------------------------------------------------------
+#	ASK - Active Spam Killer
+#
+#	ASK is a python program designed to be invoked from your .forward file.
+#	Its main goal is to protect the user against SPAM, taking an "active"
+#	approach instead of trying to block known spammer addresses.
+#
+#	Upon receipt of a message from an unknown user, ASK will "queue" the 
+#	original message and send a mail back to the user asking for confirmation.
+#	When the 'confirmation' email is received, the message is de-queued and
+#	delivered.
+#
+#	The program does some 'tricks' to avoid mail-loops and other unpleasantries.
+#	
+#	Take a look at the program's home-page at http://www.paganini.net/ask before
+#	you try to use it, since an error in the configuration may cause loss of
+#	email.
+#
+#	(C) 2001-2006 by Marco Paganini (paganini@paganini.net)
+#
+#   This file is part of ASK - Active Spam Killer
+#
+#   ASK is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   ASK is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with ASK; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	$Id: askfilter,v 1.4 2006/01/09 04:22:26 paganini Exp $
+#------------------------------------------------------------------------------
+
+import os
+import sys
+import traceback
+
+try:
+	## Add the default modules path
+	sys.path.append("/usr/lib/ask")
+	sys.path.append("/usr/share/ask")
+
+	import askversion
+	import asklog
+	import askconfig
+	import askmail
+	import askmessage
+	import askmain
+
+	## Create the config and log objects.
+	## logfile and loglevel are set according to the command line
+
+	config = askconfig.AskConfig(sys.argv)
+	log    = asklog.AskLog(config.logfile)
+	log.loglevel = config.loglevel
+
+	## Create the main ASK instance and execute it
+	ask = askmain.AskMain(config, log)
+	rc = ask.filter(sys.stdin)
+
+except:
+	
+	## Try to open the file in $HOME. If it fails, try /tmp
+	## In any case, send the traceback to the sender so we
+	## increase the chances people will notice the problem
+	## and have information to report.
+	
+	if os.getenv("HOME"):
+		err_prefix = os.getenv("HOME")
+	else:
+		err_prefix = "/tmp"
+
+	err_filename = os.path.join(err_prefix, "ASK-FATAL-ERROR.%s" % os.getpid())
+	fh = open(err_filename, "w")
+	(type, value, tback) = sys.exc_info()
+	traceback.print_exc(tback,fh)
+	fh.close()
+
+	## Try to return some information to the sender
+
+	sys.stderr.write("Attention:\n\n")
+	sys.stderr.write("The system could not deliver your message due to a technical problem.\n")
+	sys.stderr.write("Information about the problem has been recorded locally for analysis.\n\n")
+	sys.stderr.write("--- Problem Details ---\n\n")
+
+	traceback.print_exc(tback)
+
+	sys.stderr.write("\n-----------------------\n")
+
+	rc = 100		## 100 forces Qmail (at least) to declare "hard error"
+
+sys.exit(rc)
+	
+## EOF ##

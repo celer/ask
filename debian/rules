@@ -1,0 +1,56 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE=1
+# This is the debhelper compatibility version to use.
+export DH_COMPAT=3
+
+clean:
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+	find . -name "*.pyc" -exec rm -f {} \;
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs -i usr/bin
+	dh_installdirs -i usr/share/ask
+	dh_installdirs -i usr/share/man/man1
+	dh_installdirs -i usr/share/ask
+	dh_installdirs -i usr/share/ask/templates
+
+	# Add here commands to install the package into debian/ask.
+	install -m 755 askfilter asksetup utils/asksenders $(CURDIR)/debian/ask/usr/bin
+
+	install -m 644 askversion.py  $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 askconfig.py   $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 asklock.py     $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 asklog.py      $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 askmail.py     $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 askmain.py     $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 askmessage.py  $(CURDIR)/debian/ask/usr/share/ask
+	install -m 644 askremote.py   $(CURDIR)/debian/ask/usr/share/ask
+	dh_python
+
+	install -m 644 templates/* $(CURDIR)/debian/ask/usr/share/ask/templates
+
+	#gzip --best docs/*.1
+	#install -m 644 docs/*.1.gz $(CURDIR)/debian/ask/usr/share/man/man1
+
+binary-indep: install
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdocs -i docs/*.html docs/*.css docs/*.pdf docs/*.txt
+	dh_installman -A docs/*.1
+	dh_installchangelogs ChangeLog -i
+	dh_installdebconf
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+binary: binary-indep
+.PHONY: build clean binary-arch binary install configure

@@ -1,0 +1,21 @@
+Source: ask
+Section: mail
+Priority: optional
+Maintainer: Marco Paganini <paganini@paganini.net>
+Build-Depends: debhelper (>> 3.0.0)
+Standards-Version: 3.5.2
+
+Package: ask
+Architecture: all
+Depends: python (>=2.2.0), exim | mail-transport-agent
+Suggests: procmail
+Description: Challenge-based Anti-Spam tool
+ Active Spam Killer (ASK) protects your email account against spam by
+ confirming the sender's email address before actual delivery takes
+ place. The confirmation happens by means of a "confirmation message" that
+ is automatically sent to all "unknown" users. Once the sender replies to
+ that message (a simple reply will do), future emails from that person will
+ be delivered immediately. You can also specify (regexp) addresses to be
+ immediately accepted, rejected (with a nastygram) or ignored. The package
+ also includes a utility to scan your old mailboxes and generate a list of
+ emails to be accepted automatically.
